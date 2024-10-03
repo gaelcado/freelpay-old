@@ -1,0 +1,95 @@
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel
+from routers import auth, user, ai, invoice
+from database.mongodb import insert_user, find_user
+import bcrypt
+import jwt
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
+import os
+from dependencies import get_current_user
+
+load_dotenv()
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://frontend:3000", "https://spike-ai-ipeuc.ondigitalocean.app"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(user.router, prefix="/users", tags=["users"])
+app.include_router(ai.router, prefix="/ai", tags=["ai"])
+app.include_router(invoice.router, prefix="/invoices", tags=["invoices"])
+
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+class UserCreate(BaseModel):
+    username: str
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+@app.post("/register", response_model=Token)
+async def register_user(user: UserCreate):
+    if find_user(user.username):
+        raise HTTPException(status_code=400, detail="Username already registered")
+    
+    hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt())
+    insert_user(user.username, user.email, hashed_password, is_admin=False)
+    
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/token", response_model=Token)
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = find_user(form_data.username)
+    if not user or not bcrypt.checkpw(form_data.password.encode('utf-8'), user['password']):
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    
+    access_token = create_access_token(data={"sub": form_data.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+# Example protected route
+@app.get("/users/me")
+async def read_users_me(current_user: dict = Depends(get_current_user)):
+    return {
+        "id": current_user['_id'],
+        "username": current_user['username'],
+        "email": current_user.get('email'),
+        "bio": current_user.get('bio', '')
+    }
+
+@app.get("/admin/user/{username}")
+async def admin_get_user(username: str, current_user: dict = Depends(get_current_user)):
+    if not current_user.get('is_admin'):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    user = find_user(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "id": str(user['_id']),
+        "username": user['username'],
+        "email": user.get('email'),
+        "bio": user.get('bio', '')
+    }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
