@@ -46,7 +46,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-gradient-to-r from-primary to-secondary">
+    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
       <Card className="w-[400px] shadow-xl">
         <CardHeader>
           <CardTitle className="text-3xl font-bold text-center">

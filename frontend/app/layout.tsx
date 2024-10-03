@@ -22,9 +22,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <div className="relative flex min-h-screen flex-col">
+          <div className="relative flex min-h-screen flex-col bg-background">
             <Navbar />
-            <div className="flex-1 py-8">
+            <div className="flex-1 py-8 px-4 sm:px-6 lg:px-8">
               {children}
             </div>
           </div>
