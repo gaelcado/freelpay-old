@@ -13,12 +13,26 @@ import axios from 'axios'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
+interface CreatedInvoice {
+  id: string;
+  invoice_number: string;
+  client: string;
+  amount: number;
+  due_date: string;
+  description: string;
+  possible_financing: number;
+  status: string;
+  created_date: string;
+  score: number;
+}
+
 export default function NewInvoice() {
   const [invoiceNumber, setInvoiceNumber] = useState('')
   const [clientName, setClientName] = useState('')
   const [amount, setAmount] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [description, setDescription] = useState('')
+  const [createdInvoice, setCreatedInvoice] = useState<CreatedInvoice | null>(null)
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,6 +48,7 @@ export default function NewInvoice() {
       }, {
         headers: { Authorization: `Bearer ${token}` }
       })
+      setCreatedInvoice(response.data)
       toast({
         title: 'Invoice Created',
         description: `Invoice created successfully. Possible financing: ${response.data.possible_financing}`,
@@ -52,7 +67,7 @@ export default function NewInvoice() {
     const file = e.target.files?.[0]
     if (file) {
       const formData = new FormData()
-      formData.append('invoice', file)
+      formData.append('file', file)
       try {
         const token = localStorage.getItem('token')
         const response = await axios.post(`${API_URL}/invoices/upload`, formData, {
@@ -61,15 +76,16 @@ export default function NewInvoice() {
             Authorization: `Bearer ${token}`
           }
         })
+        setCreatedInvoice(response.data)
         toast({
           title: 'Invoice Uploaded',
-          description: `Invoice processed successfully. Possible financing: ${response.data.possible_financing}`,
+          description: 'Your invoice has been successfully uploaded and processed.',
         })
       } catch (error) {
         console.error('Error uploading invoice:', error)
         toast({
           title: 'Error',
-          description: 'Failed to process invoice. Please try again.',
+          description: 'Failed to upload invoice. Please try again.',
           variant: 'destructive',
         })
       }
@@ -152,6 +168,22 @@ export default function NewInvoice() {
             </div>
           </TabsContent>
         </Tabs>
+        {createdInvoice && (
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold mb-4">Created Invoice</h3>
+            <div className="space-y-2">
+              <p><strong>Invoice Number:</strong> {createdInvoice.invoice_number}</p>
+              <p><strong>Client:</strong> {createdInvoice.client}</p>
+              <p><strong>Amount:</strong> ${createdInvoice.amount.toFixed(2)}</p>
+              <p><strong>Due Date:</strong> {new Date(createdInvoice.due_date).toLocaleDateString()}</p>
+              <p><strong>Description:</strong> {createdInvoice.description}</p>
+              <p><strong>Possible Financing:</strong> ${createdInvoice.possible_financing.toFixed(2)}</p>
+              <p><strong>Status:</strong> {createdInvoice.status}</p>
+              <p><strong>Created Date:</strong> {new Date(createdInvoice.created_date).toLocaleDateString()}</p>
+              <p><strong>Score:</strong> {createdInvoice.score.toFixed(2)}</p>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

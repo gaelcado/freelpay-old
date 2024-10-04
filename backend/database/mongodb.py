@@ -148,9 +148,12 @@ def update_user_admin_status(username: str, is_admin: bool):
 
 def create_invoice(invoice_data):
     invoices_collection = db.invoices
+    invoice_data['_id'] = ObjectId()
     result = invoices_collection.insert_one(invoice_data)
     if result.inserted_id:
-        return {**invoice_data, "id": str(result.inserted_id)}
+        invoice_data['id'] = str(invoice_data['_id'])
+        del invoice_data['_id']
+        return invoice_data
     return None
 
 def get_user_invoices(username):

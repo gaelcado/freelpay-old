@@ -11,13 +11,13 @@ from datetime import datetime
 router = APIRouter()
 
 @router.post("/create", response_model=Invoice)
-async def create_invoice_route(invoice: InvoiceCreate, current_user: User = Depends(get_current_user)):
+async def create_invoice_route(invoice: InvoiceCreate, current_user: dict = Depends(get_current_user)):
     score = calculate_score(invoice.dict())
     possible_financing = invoice.amount * (1 - score)
     
     invoice_data = InvoiceInDB(
         **invoice.dict(),
-        user_id=current_user.username,
+        user_id=current_user['username'],
         created_date=datetime.now(),
         status="ongoing",
         score=score,
