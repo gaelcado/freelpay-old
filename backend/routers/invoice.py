@@ -55,7 +55,7 @@ async def upload_invoice(file: UploadFile = File(...), current_user: User = Depe
 @router.get("/", response_model=List[Invoice])
 async def get_invoices(current_user: dict = Depends(get_current_user)):
     invoices = get_user_invoices(current_user['username'])
-    return [Invoice(**invoice) for invoice in invoices]
+    return [Invoice(**{**invoice, 'created_date': invoice['created_date'].isoformat()}) for invoice in invoices]
 
 @router.post("/{invoice_id}/accept")
 async def accept_invoice(invoice_id: str, current_user: dict = Depends(get_current_user)):

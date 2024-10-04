@@ -18,6 +18,10 @@ type Invoice = {
   status: 'ongoing' | 'paid' | 'archived'
   financingDate?: string
   possibleFinancing?: number
+  invoice_number: string
+  due_date: string
+  description?: string
+  score?: number
 }
 
 export default function Dashboard() {
@@ -84,7 +88,7 @@ export default function Dashboard() {
           <TableBody>
             {invoices.map((invoice) => (
               <TableRow key={invoice.id}>
-                <TableCell>{new Date(invoice.createdDate).toLocaleDateString()}</TableCell>
+                <TableCell>{new Date(invoice.createdDate).toLocaleString()}</TableCell>
                 <TableCell>{invoice.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</TableCell>
                 <TableCell>{invoice.client}</TableCell>
                 <TableCell>

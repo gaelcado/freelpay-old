@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import axios from 'axios'
 import Confetti from 'react-confetti'
+import { useRouter } from 'next/navigation'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -39,6 +40,7 @@ export default function NewInvoice() {
   const [showScoreDialog, setShowScoreDialog] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
   const { toast } = useToast()
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -220,6 +222,7 @@ export default function NewInvoice() {
           <Button onClick={() => {
             setShowScoreDialog(false)
             setShowConfetti(false)
+            router.push('/dashboard')
           }}>
             Go to Dashboard
           </Button>
