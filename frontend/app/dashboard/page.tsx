@@ -12,6 +12,7 @@ import axios from 'axios'
 import { format } from 'date-fns'
 import { DateRangePicker } from '@/components/ui/react-day-picker'
 import { DateRange } from 'react-day-picker'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -35,6 +36,8 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
+  const [showSendDialog, setShowSendDialog] = useState(false) // State for dialog visibility
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null) // State to hold the selected invoice ID
 
   useEffect(() => {
     fetchInvoices()
@@ -81,17 +84,25 @@ export default function Dashboard() {
     setFilteredInvoices(filtered)
   }
 
-  const handleSend = async (invoiceId: string) => {
-    try {
-      const token = localStorage.getItem('token')
-      await axios.post(`${API_URL}/invoices/${invoiceId}/send`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      fetchInvoices()
-    } catch (error) {
-      console.error('Error sending invoice:', error)
+  const handleSend = (invoiceId: string) => {
+    setSelectedInvoiceId(invoiceId); // Set the selected invoice ID
+    setShowSendDialog(true); // Show the confirmation dialog
+  };
+
+  const confirmSendInvoice = async () => {
+    if (selectedInvoiceId) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.post(`${API_URL}/invoices/${selectedInvoiceId}/send`, {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        fetchInvoices(); // Refresh the invoices after sending
+      } catch (error) {
+        console.error('Error sending invoice:', error);
+      }
+      setShowSendDialog(false); // Close the dialog
     }
-  }
+  };
 
   const handleView = (invoiceId: string) => {
     console.log('Viewing invoice:', invoiceId)
@@ -186,6 +197,20 @@ export default function Dashboard() {
           </TableBody>
         </Table>
       </CardContent>
+      <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Send Invoice</DialogTitle>
+          </DialogHeader>
+          <div>
+            Are you sure you want to send this invoice to the client?
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSendDialog(false)}>Cancel</Button>
+            <Button onClick={confirmSendInvoice}>Send</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
