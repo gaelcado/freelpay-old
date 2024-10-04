@@ -9,7 +9,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import axios from 'axios'
+import Confetti from 'react-confetti'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -33,6 +35,9 @@ export default function NewInvoice() {
   const [dueDate, setDueDate] = useState('')
   const [description, setDescription] = useState('')
   const [createdInvoice, setCreatedInvoice] = useState<CreatedInvoice | null>(null)
+  const [isScoring, setIsScoring] = useState(false)
+  const [showScoreDialog, setShowScoreDialog] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,7 +56,7 @@ export default function NewInvoice() {
       setCreatedInvoice(response.data)
       toast({
         title: 'Invoice Created',
-        description: `Invoice created successfully. Possible financing: ${response.data.possible_financing}`,
+        description: `Invoice created successfully. Possible financing: ${response.data.possible_financing?.toFixed(2) ?? 'N/A'}`,
       })
     } catch (error) {
       console.error('Error creating invoice:', error)
@@ -90,6 +95,17 @@ export default function NewInvoice() {
         })
       }
     }
+  }
+
+  const handleScoreInvoice = async () => {
+    if (!createdInvoice) return
+
+    setIsScoring(true)
+    // Simulating a 5-second delay for the scoring algorithm
+    await new Promise(resolve => setTimeout(resolve, 5000))
+    setIsScoring(false)
+    setShowScoreDialog(true)
+    setShowConfetti(true)
   }
 
   return (
@@ -154,7 +170,7 @@ export default function NewInvoice() {
               <Button type="submit" className="w-full">Create Invoice</Button>
             </form>
           </TabsContent>
-          <TabsContent value="upload">
+<TabsContent value="upload">
             <div className="space-y-4">
               <Label htmlFor="invoice-upload">Upload Invoice</Label>
               <Input
@@ -177,14 +193,39 @@ export default function NewInvoice() {
               <p><strong>Amount:</strong> ${createdInvoice.amount.toFixed(2)}</p>
               <p><strong>Due Date:</strong> {new Date(createdInvoice.due_date).toLocaleDateString()}</p>
               <p><strong>Description:</strong> {createdInvoice.description}</p>
-              <p><strong>Possible Financing:</strong> ${createdInvoice.possible_financing.toFixed(2)}</p>
+              <p><strong>Possible Financing:</strong> ${createdInvoice.possible_financing?.toFixed(2) ?? 'N/A'}</p>
               <p><strong>Status:</strong> {createdInvoice.status}</p>
               <p><strong>Created Date:</strong> {new Date(createdInvoice.created_date).toLocaleDateString()}</p>
-              <p><strong>Score:</strong> {createdInvoice.score.toFixed(2)}</p>
+              <p><strong>Score:</strong> {createdInvoice.score?.toFixed(2) ?? 'N/A'}</p>
             </div>
+            <Button 
+              onClick={handleScoreInvoice} 
+              className="mt-4 w-full"
+              disabled={isScoring}
+            >
+              {isScoring ? 'Scoring...' : 'Score my invoice'}
+            </Button>
           </div>
         )}
       </CardContent>
+      <Dialog open={showScoreDialog} onOpenChange={setShowScoreDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Congratulations!</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>Your invoice has a score of <strong>{createdInvoice?.score?.toFixed(2) ?? 'N/A'}</strong></p>
+            <p className="mt-2">We are able to pay you an amount of <strong>${createdInvoice?.possible_financing?.toFixed(2) ?? 'N/A'}</strong> for this invoice.</p>
+          </div>
+          <Button onClick={() => {
+            setShowScoreDialog(false)
+            setShowConfetti(false)
+          }}>
+            Go to Dashboard
+          </Button>
+        </DialogContent>
+      </Dialog>
+      {showConfetti && <Confetti />}
     </Card>
   )
 }
