@@ -33,23 +33,24 @@ except Exception as err:
 
 print(f"Python version: {sys.version}")
 
-def insert_user(username, email, hashed_password, is_admin=False):
+def insert_user(username, email, hashed_password, siret_number, phone, address, is_admin=False):
     user = {
         "username": username,
         "email": email,
         "password": hashed_password,
-        "is_admin": is_admin
+        "siret_number": siret_number,
+        "phone": phone,
+        "address": address,
+        "is_admin": is_admin,
+        "is_verified": False
     }
     return users_collection.insert_one(user)
 
 def find_user(username):
-    return users_collection.find_one({"username": username})
-
-def update_user_bio(username: str, bio: str):
-    return users_collection.update_one(
-        {"username": username},
-        {"$set": {"bio": bio}}
-    )
+    user = users_collection.find_one({"username": username})
+    if user:
+        user['_id'] = str(user['_id'])
+    return user
 
 def get_user_meetings(username: str):
     meetings = list(db.contacts.find({"username": username}).sort("last_seen", -1))
@@ -167,3 +168,15 @@ def update_invoice_status(invoice_id, username, status):
         {"$set": {"status": status}}
     )
     return result.modified_count > 0
+
+async def update_user_profile(user_id: str, update_data: dict):
+    return await users_collection.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": update_data}
+    )
+
+async def update_user_id_document(username: str, file_path: str):
+    return await users_collection.update_one(
+        {"username": username},
+        {"$set": {"id_document": file_path}}
+    )

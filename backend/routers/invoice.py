@@ -53,20 +53,20 @@ async def upload_invoice(file: UploadFile = File(...), current_user: User = Depe
     raise HTTPException(status_code=400, detail="Failed to process invoice")
 
 @router.get("/", response_model=List[Invoice])
-async def get_invoices(current_user: User = Depends(get_current_user)):
-    invoices = get_user_invoices(current_user.username)
+async def get_invoices(current_user: dict = Depends(get_current_user)):
+    invoices = get_user_invoices(current_user['username'])
     return [Invoice(**invoice) for invoice in invoices]
 
 @router.post("/{invoice_id}/accept")
-async def accept_invoice(invoice_id: str, current_user: User = Depends(get_current_user)):
-    result = update_invoice_status(invoice_id, current_user.username, "accepted")
+async def accept_invoice(invoice_id: str, current_user: dict = Depends(get_current_user)):
+    result = update_invoice_status(invoice_id, current_user['username'], "accepted")
     if result:
         return {"message": "Invoice accepted successfully"}
     raise HTTPException(status_code=400, detail="Failed to accept invoice")
 
 @router.post("/{invoice_id}/refuse")
-async def refuse_invoice(invoice_id: str, current_user: User = Depends(get_current_user)):
-    result = update_invoice_status(invoice_id, current_user.username, "refused")
+async def refuse_invoice(invoice_id: str, current_user: dict = Depends(get_current_user)):
+    result = update_invoice_status(invoice_id, current_user['username'], "refused")
     if result:
         return {"message": "Invoice refused successfully"}
     raise HTTPException(status_code=400, detail="Failed to refuse invoice")

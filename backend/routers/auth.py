@@ -84,10 +84,15 @@ async def signup(user: UserCreate):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     hashed_password = get_password_hash(user.password)
-    user_dict = user.dict()
-    user_dict["hashed_password"] = hashed_password
-    del user_dict["password"]
-    insert_user(user.username, user.email, hashed_password, is_admin=False)
+    insert_user(
+        user.username,
+        user.email,
+        hashed_password,
+        user.siret_number,
+        user.phone,
+        user.address,
+        is_admin=False
+    )
     return {"message": "User created successfully"}
 
 @router.post("/login")

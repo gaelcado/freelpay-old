@@ -32,6 +32,3 @@ class UserUpdate(BaseModel):
     siret_number: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
-
-class UserBioUpdate(BaseModel):
-    bio: str

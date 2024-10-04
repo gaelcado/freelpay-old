@@ -15,13 +15,20 @@ load_dotenv()
 
 app = FastAPI()
 
+# Configurez CORS et autres middlewares ici
+
+# Augmentez la taille maximale des fichiers téléchargés à 10 Mo
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://frontend:3000", "https://spike-ai-ipeuc.ondigitalocean.app"],
+    allow_origins=["*"],  # Ajustez ceci pour la sécurité en production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    max_age=600,
 )
+
+# Configurez la taille maximale du corps de la requête à 10 Mo
+app.max_request_size = 10 * 1024 * 1024  # 10 Mo en octets
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(user.router, prefix="/users", tags=["users"])
@@ -70,10 +77,13 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 @app.get("/users/me")
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     return {
-        "id": current_user['_id'],
+        "id": current_user['id'],  # Changed from '_id' to 'id'
         "username": current_user['username'],
         "email": current_user.get('email'),
-        "bio": current_user.get('bio', '')
+        "siret_number": current_user.get('siret_number', ''),
+        "phone": current_user.get('phone', ''),
+        "address": current_user.get('address', ''),
+        "is_verified": current_user.get('is_verified', False),
     }
 
 @app.get("/admin/user/{username}")

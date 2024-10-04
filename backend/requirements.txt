@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-pydantic
+pydantic==2.9.2
 python-jose
 passlib
 python-multipart
@@ -24,3 +24,4 @@ python-multipart
 pdf2image
 pytesseract
 pillow
+aiofiles
