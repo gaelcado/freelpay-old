@@ -16,8 +16,8 @@ class UserInDB(BaseModel):
     siret_number: str
     phone: str
     address: str
-    is_verified: bool = False
     id_document: Optional[str] = None
+    id_document_status: Optional[str] = "not_uploaded"  # New field for document status
 
 class User(BaseModel):
     username: str
@@ -25,7 +25,6 @@ class User(BaseModel):
     siret_number: str
     phone: str
     address: str
-    is_verified: bool = False
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None

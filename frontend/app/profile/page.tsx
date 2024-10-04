@@ -17,6 +17,8 @@ interface OriginalData {
   siret_number: string;
   phone: string;
   address: string;
+  id_document?: string; 
+  id_document_status?: string; 
 }
 
 export default function Profile() {
@@ -25,43 +27,50 @@ export default function Profile() {
   const [siret, setSiret] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
-  const [isVerified, setIsVerified] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [originalData, setOriginalData] = useState<OriginalData>({
     email: '',
     siret_number: '',
     phone: '',
-    address: ''
+    address: '',
+    id_document: undefined,
+    id_document_status: 'not_uploaded' // Initialize with default status
   });
+  const [idDocument, setIdDocument] = useState<string | null>(null); // State for ID document
+  const [idDocumentStatus, setIdDocumentStatus] = useState('not_uploaded'); // State for ID document status
   const { toast } = useToast()
 
   useEffect(() => {
-    fetchUserProfile()
-  }, [])
+    fetchUserProfile();
+  }, []);
 
   const fetchUserProfile = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/users/me`, {
         headers: { Authorization: `Bearer ${token}` }
-      })
-      const userData = response.data
-      setName(userData.username)
-      setEmail(userData.email)
-      setSiret(userData.siret_number)
-      setPhone(userData.phone)
-      setAddress(userData.address)
-      setIsVerified(userData.is_verified)
+      });
+      const userData = response.data;
+      setName(userData.username);
+      setEmail(userData.email);
+      setSiret(userData.siret_number);
+      setPhone(userData.phone);
+      setAddress(userData.address);
+      setIdDocument(userData.id_document || null);
+      setIdDocumentStatus(userData.id_document_status); // Set the ID document status
+
       setOriginalData({
         email: userData.email,
         siret_number: userData.siret_number,
         phone: userData.phone,
-        address: userData.address
-      })
+        address: userData.address,
+        id_document: userData.id_document || null,
+        id_document_status: userData.id_document_status || 'not_uploaded' // Include id_document_status
+      });
     } catch (error) {
-      console.error('Error fetching user profile:', error)
+      console.error('Error fetching user profile:', error);
     }
-  }
+  };
 
   const handleInputChange = (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
     setter(value)
@@ -74,7 +83,8 @@ export default function Profile() {
       email !== originalDataTyped.email ||
       siret !== originalDataTyped.siret_number ||
       phone !== originalDataTyped.phone ||
-      address !== originalDataTyped.address;
+      address !== originalDataTyped.address ||
+      idDocument !== originalDataTyped.id_document; // Check for changes in id_document
     setHasChanges(hasChanged);
   }
 
@@ -110,7 +120,7 @@ export default function Profile() {
     const file = e.target.files?.[0]
     if (file) {
       const formData = new FormData()
-      formData.append('file', file)  // Changez 'id_document' en 'file'
+      formData.append('file', file)
       try {
         const token = localStorage.getItem('token')
         await axios.post(`${API_URL}/users/upload-id`, formData, {
@@ -123,6 +133,7 @@ export default function Profile() {
           title: 'ID Document Uploaded',
           description: 'Your ID document has been successfully uploaded for verification.',
         })
+        setIdDocument(URL.createObjectURL(file)); // Preview the uploaded file
       } catch (error) {
         console.error('Error uploading ID document:', error)
         toast({
@@ -190,16 +201,36 @@ export default function Profile() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="id-document">ID Document</Label>
-            <Input
-              id="id-document"
-              type="file"
-              onChange={handleFileUpload}
-            />
+            {idDocument ? (
+              <div>
+                {idDocument.endsWith('.pdf') ? (
+                  <a href={idDocument} target="_blank" rel="noopener noreferrer">
+                    View ID Document
+                  </a>
+                ) : (
+                  <img src={idDocument} alt="ID Document Preview" className="w-full h-auto" />
+                )}
+              </div>
+            ) : (
+              <Input
+                id="id-document"
+                type="file"
+                onChange={handleFileUpload}
+                disabled={idDocumentStatus === 'verified' || idDocumentStatus === 'pending'} // Disable if verified or pending
+              />
+            )}
           </div>
           <div className="flex items-center space-x-2">
             <span>Verification Status:</span>
-            <Badge variant={isVerified ? "default" : "secondary"}>
-              {isVerified ? 'Verified' : 'Not Verified'}
+            <Badge variant={
+              idDocumentStatus === 'verified' ? "default" : 
+              idDocumentStatus === 'pending' ? "secondary" : 
+              idDocumentStatus === 'rejected' ? "destructive" : 
+              undefined
+            }>
+              {idDocumentStatus === 'verified' ? 'Verified' : 
+               idDocumentStatus === 'pending' ? 'Pending Validation' : 
+               'Not Verified'}
             </Badge>
           </div>
           <Button type="submit" className="w-full" disabled={!hasChanges}>

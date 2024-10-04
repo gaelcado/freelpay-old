@@ -109,19 +109,3 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         data={"sub": user['username']}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
-
-@router.post("/admin-login")
-async def admin_login(form_data: OAuth2PasswordRequestForm = Depends()):
-    # Check if the user is an admin (you'd need to add an 'is_admin' field to your user model)
-    user = find_user(form_data.username)
-    if not user or not verify_password(form_data.password, user['password']) or not user.get('is_admin'):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password, or not an admin",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user['username'], "is_admin": True}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}

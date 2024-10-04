@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
-from routers import auth, user, ai, invoice
+from routers import auth, user, invoice
 from database.mongodb import insert_user, find_user
 import bcrypt
 import jwt
@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import os
 from dependencies import get_current_user
+from fastapi.staticfiles import StaticFiles
+import logging
 
 load_dotenv()
 
@@ -32,7 +34,6 @@ app.max_request_size = 10 * 1024 * 1024  # 10 Mo en octets
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(user.router, prefix="/users", tags=["users"])
-app.include_router(ai.router, prefix="/ai", tags=["ai"])
 app.include_router(invoice.router, prefix="/invoices", tags=["invoices"])
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
@@ -76,29 +77,17 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 # Example protected route
 @app.get("/users/me")
 async def read_users_me(current_user: dict = Depends(get_current_user)):
-    return {
-        "id": current_user['_id'],  # Changé de 'id' à '_id'
+    user_info = {
+        "id": current_user['_id'],
         "username": current_user['username'],
         "email": current_user.get('email'),
         "siret_number": current_user.get('siret_number', ''),
         "phone": current_user.get('phone', ''),
         "address": current_user.get('address', ''),
-        "is_verified": current_user.get('is_verified', False),
+        "id_document_status": current_user.get('id_document_status', 'not_uploaded'),  # Include id_document_status
     }
-
-@app.get("/admin/user/{username}")
-async def admin_get_user(username: str, current_user: dict = Depends(get_current_user)):
-    if not current_user.get('is_admin'):
-        raise HTTPException(status_code=403, detail="Not authorized")
-    user = find_user(username)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return {
-        "id": str(user['_id']),
-        "username": user['username'],
-        "email": user.get('email'),
-        "bio": user.get('bio', '')
-    }
+    logging.debug(f"User info retrieved: {user_info}")
+    return user_info
 
 if __name__ == "__main__":
     import uvicorn

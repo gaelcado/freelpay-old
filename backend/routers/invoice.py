@@ -19,7 +19,6 @@ async def create_invoice_route(invoice: InvoiceCreate, current_user: dict = Depe
         **invoice.dict(),
         user_id=current_user['username'],
         created_date=datetime.now(),
-        status=None,
         score=score,
         possible_financing=possible_financing
     )

@@ -32,13 +32,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     
     # Ensure all required fields are present
     user_dict = {
-        "_id": str(user['_id']),  # Changé de "id" à "_id"
+        "_id": str(user['_id']), 
         "username": user['username'],
         "email": user.get('email'),
         "siret_number": user.get('siret_number', ''),
         "phone": user.get('phone', ''),
         "address": user.get('address', ''),
-        "is_verified": user.get('is_verified', False),
+        "id_document": user.get('id_document', None),
+        "id_document_status": user.get('id_document_status', '')
     }
     
     return user_dict
