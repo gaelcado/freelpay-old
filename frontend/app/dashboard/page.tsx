@@ -12,12 +12,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 type Invoice = {
   id: string
-  createdDate: string
+  created_date: string  // Changed from createdDate to match the backend
   amount: number
   client: string
   status: 'ongoing' | 'paid' | 'archived'
-  financingDate?: string
-  possibleFinancing?: number
+  financing_date?: string
+  possible_financing?: number
   invoice_number: string
   due_date: string
   description?: string
@@ -88,7 +88,7 @@ export default function Dashboard() {
           <TableBody>
             {invoices.map((invoice) => (
               <TableRow key={invoice.id}>
-                <TableCell>{new Date(invoice.createdDate).toLocaleString()}</TableCell>
+                <TableCell>{new Date(invoice.created_date).toLocaleString()}</TableCell>
                 <TableCell>{invoice.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</TableCell>
                 <TableCell>{invoice.client}</TableCell>
                 <TableCell>
@@ -96,10 +96,10 @@ export default function Dashboard() {
                     {invoice.status}
                   </Badge>
                 </TableCell>
-                <TableCell>{invoice.financingDate ? new Date(invoice.financingDate).toLocaleDateString() : '-'}</TableCell>
-                <TableCell>{invoice.possibleFinancing ? `${invoice.possibleFinancing}%` : '-'}</TableCell>
+                <TableCell>{invoice.financing_date ? new Date(invoice.financing_date).toLocaleDateString() : '-'}</TableCell>
+                <TableCell>{invoice.possible_financing ? `${invoice.possible_financing.toFixed(2)}%` : '-'}</TableCell>
                 <TableCell>
-                  {invoice.possibleFinancing && invoice.status === 'ongoing' && (
+                  {invoice.possible_financing && invoice.status === 'ongoing' && (
                     <div className="space-x-2">
                       <Button size="sm" onClick={() => handleAccept(invoice.id)}>Accept</Button>
                       <Button size="sm" variant="outline" onClick={() => handleRefuse(invoice.id)}>Refuse</Button>
