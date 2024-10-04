@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import axios from 'axios'
 import { format } from 'date-fns'
+import { DateRangePicker } from '@/components/ui/react-day-picker'
+import { DateRange } from 'react-day-picker'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -32,7 +34,7 @@ export default function Dashboard() {
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | undefined>()
-  const [dateRange, setDateRange] = useState<{ from: Date; to: Date } | undefined>()
+  const [dateRange, setDateRange] = useState<DateRange | undefined>()
 
   useEffect(() => {
     fetchInvoices()
@@ -64,12 +66,13 @@ export default function Dashboard() {
       )
     }
 
-    if (statusFilter && statusFilter !== 'all') { // Check if statusFilter is not 'all'
+    if (statusFilter && statusFilter !== 'all') {
       filtered = filtered.filter(invoice => invoice.status === statusFilter)
     }
 
-    if (dateRange?.from && dateRange?.to) {
+    if (dateRange && dateRange.from && dateRange.to) { // Added check for dateRange
       filtered = filtered.filter(invoice => {
+        if (!dateRange.from || !dateRange.to) return false; // Ensure from and to are defined
         const invoiceDate = new Date(invoice.created_date)
         return invoiceDate >= dateRange.from && invoiceDate <= dateRange.to
       })
@@ -91,7 +94,6 @@ export default function Dashboard() {
   }
 
   const handleView = (invoiceId: string) => {
-    // Implement view functionality (e.g., open a modal with invoice details)
     console.log('Viewing invoice:', invoiceId)
   }
 
@@ -136,6 +138,7 @@ export default function Dashboard() {
           </div>
           <div className="w-full md:w-auto">
             <Label>Date Range</Label>
+            <DateRangePicker onChange={setDateRange} />
           </div>
         </div>
         <Table>
