@@ -32,7 +32,7 @@ class Invoice(BaseModel):
     due_date: datetime
     description: Optional[str] = None
     created_date: datetime
-    status: str
+    status: Optional[str] = None
     financing_date: Optional[datetime] = None
     possible_financing: Optional[float] = None
     score: Optional[float] = None

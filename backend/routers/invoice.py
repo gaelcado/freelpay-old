@@ -19,7 +19,7 @@ async def create_invoice_route(invoice: InvoiceCreate, current_user: dict = Depe
         **invoice.dict(),
         user_id=current_user['username'],
         created_date=datetime.now(),
-        status="ongoing",
+        status=None,
         score=score,
         possible_financing=possible_financing
     )
@@ -70,3 +70,10 @@ async def refuse_invoice(invoice_id: str, current_user: dict = Depends(get_curre
     if result:
         return {"message": "Invoice refused successfully"}
     raise HTTPException(status_code=400, detail="Failed to refuse invoice")
+
+@router.post("/{invoice_id}/send")
+async def send_invoice(invoice_id: str, current_user: dict = Depends(get_current_user)):
+    result = update_invoice_status(invoice_id, current_user['username'], "sent")
+    if result:
+        return {"message": "Invoice sent successfully"}
+    raise HTTPException(status_code=400, detail="Failed to send invoice")
