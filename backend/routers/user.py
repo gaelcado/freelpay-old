@@ -23,6 +23,9 @@ async def upload_id_document(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user)
 ):
+    if not file:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+    
     # Vérifiez le type MIME du fichier
     if file.content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(status_code=400, detail="Invalid file type. Only JPEG, PNG, and PDF are allowed.")
@@ -39,7 +42,7 @@ async def upload_id_document(
             await buffer.write(content)  # écrire le contenu dans le nouveau fichier
         
         # Mettez à jour le document de l'utilisateur avec le chemin du fichier
-        result = await update_user_id_document(current_user['username'], file_path)
+        result = update_user_id_document(current_user['username'], file_path)
         
         if result.modified_count > 0:
             return JSONResponse(
@@ -58,8 +61,9 @@ async def upload_id_document(
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 @router.put("/update")
-async def update_user_profile(user_update: UserUpdate, current_user: dict = Depends(get_current_user)):
-    result = await update_user_profile(current_user['id'], user_update.model_dump(exclude_unset=True))
+async def update_user_profile_route(user_update: UserUpdate, current_user: dict = Depends(get_current_user)):
+    print("Current user:", current_user)  # Add this line for debugging
+    result = update_user_profile(current_user['_id'], user_update.model_dump(exclude_unset=True))
     if result.modified_count > 0:
         return {"message": "Profile updated successfully"}
     raise HTTPException(status_code=400, detail="Failed to update profile")

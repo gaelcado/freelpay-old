@@ -77,7 +77,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 @app.get("/users/me")
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     return {
-        "id": current_user['id'],  # Changed from '_id' to 'id'
+        "id": current_user['_id'],  # Changé de 'id' à '_id'
         "username": current_user['username'],
         "email": current_user.get('email'),
         "siret_number": current_user.get('siret_number', ''),

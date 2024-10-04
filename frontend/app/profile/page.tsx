@@ -12,6 +12,13 @@ import axios from 'axios'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
+interface OriginalData {
+  email: string;
+  siret_number: string;
+  phone: string;
+  address: string;
+}
+
 export default function Profile() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -19,6 +26,13 @@ export default function Profile() {
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const [isVerified, setIsVerified] = useState(false)
+  const [hasChanges, setHasChanges] = useState(false)
+  const [originalData, setOriginalData] = useState<OriginalData>({
+    email: '',
+    siret_number: '',
+    phone: '',
+    address: ''
+  });
   const { toast } = useToast()
 
   useEffect(() => {
@@ -38,9 +52,30 @@ export default function Profile() {
       setPhone(userData.phone)
       setAddress(userData.address)
       setIsVerified(userData.is_verified)
+      setOriginalData({
+        email: userData.email,
+        siret_number: userData.siret_number,
+        phone: userData.phone,
+        address: userData.address
+      })
     } catch (error) {
       console.error('Error fetching user profile:', error)
     }
+  }
+
+  const handleInputChange = (setter: React.Dispatch<React.SetStateAction<string>>, value: string) => {
+    setter(value)
+    checkForChanges()
+  }
+
+  const checkForChanges = () => {
+    const originalDataTyped = originalData as OriginalData;
+    const hasChanged = 
+      email !== originalDataTyped.email ||
+      siret !== originalDataTyped.siret_number ||
+      phone !== originalDataTyped.phone ||
+      address !== originalDataTyped.address;
+    setHasChanges(hasChanged);
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,6 +94,8 @@ export default function Profile() {
         title: 'Profile Updated',
         description: 'Your profile has been successfully updated.',
       })
+      setHasChanges(false)
+      setOriginalData({ email, siret_number: siret, phone, address })
     } catch (error) {
       console.error('Error updating profile:', error)
       toast({
@@ -73,7 +110,7 @@ export default function Profile() {
     const file = e.target.files?.[0]
     if (file) {
       const formData = new FormData()
-      formData.append('id_document', file)
+      formData.append('file', file)  // Changez 'id_document' en 'file'
       try {
         const token = localStorage.getItem('token')
         await axios.post(`${API_URL}/users/upload-id`, formData, {
@@ -120,7 +157,7 @@ export default function Profile() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => handleInputChange(setEmail, e.target.value)}
               />
             </div>
           </div>
@@ -130,7 +167,7 @@ export default function Profile() {
               <Input
                 id="siret"
                 value={siret}
-                onChange={(e) => setSiret(e.target.value)}
+                onChange={(e) => handleInputChange(setSiret, e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -139,7 +176,7 @@ export default function Profile() {
                 id="phone"
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => handleInputChange(setPhone, e.target.value)}
               />
             </div>
           </div>
@@ -148,7 +185,7 @@ export default function Profile() {
             <Input
               id="address"
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e) => handleInputChange(setAddress, e.target.value)}
             />
           </div>
           <div className="space-y-2">
@@ -165,7 +202,9 @@ export default function Profile() {
               {isVerified ? 'Verified' : 'Not Verified'}
             </Badge>
           </div>
-          <Button type="submit" className="w-full">Update Profile</Button>
+          <Button type="submit" className="w-full" disabled={!hasChanges}>
+            Update Profile
+          </Button>
         </form>
       </CardContent>
     </Card>

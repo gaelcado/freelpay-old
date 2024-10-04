@@ -169,14 +169,14 @@ def update_invoice_status(invoice_id, username, status):
     )
     return result.modified_count > 0
 
-async def update_user_profile(user_id: str, update_data: dict):
-    return await users_collection.update_one(
+def update_user_profile(user_id: str, update_data: dict):
+    return users_collection.update_one(
         {"_id": ObjectId(user_id)},
         {"$set": update_data}
     )
 
-async def update_user_id_document(username: str, file_path: str):
-    return await users_collection.update_one(
+def update_user_id_document(username: str, file_path: str):
+    return users_collection.update_one(
         {"username": username},
         {"$set": {"id_document": file_path}}
     )
