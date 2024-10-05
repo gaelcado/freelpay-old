@@ -19,7 +19,7 @@ class InvoiceInDB(BaseModel):
     due_date: datetime
     description: Optional[str] = None
     created_date: datetime = Field(default_factory=datetime.now)
-    status: str = "ongoing"
+    status: str = "Ongoing"  # Set default status to "Ongoing"
     financing_date: Optional[datetime] = None
     possible_financing: Optional[float] = None
     score: Optional[float] = None

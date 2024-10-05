@@ -39,6 +39,7 @@ export default function NewInvoice() {
   const [isScoring, setIsScoring] = useState(false)
   const [showScoreDialog, setShowScoreDialog] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
+  const [score, setScore] = useState<number | null>(null); // Add this line
   const { toast } = useToast()
   const router = useRouter()
 
@@ -58,7 +59,7 @@ export default function NewInvoice() {
       setCreatedInvoice(response.data)
       toast({
         title: 'Invoice Created',
-        description: `Invoice created successfully. Possible financing: ${response.data.possible_financing?.toFixed(2) ?? 'N/A'}`,
+        description: `Invoice created successfully. You can score it now.`,
       })
     } catch (error) {
       console.error('Error creating invoice:', error)
@@ -99,16 +100,14 @@ export default function NewInvoice() {
     }
   }
 
-  const handleScoreInvoice = async () => {
-    if (!createdInvoice) return
+  const handleScoreInvoice = () => {
+    if (!createdInvoice) return;
 
-    setIsScoring(true)
-    // Simulating a 5-second delay for the scoring algorithm
-    await new Promise(resolve => setTimeout(resolve, 5000))
-    setIsScoring(false)
-    setShowScoreDialog(true)
-    setShowConfetti(true)
-  }
+    // Directly use the score from the createdInvoice
+    setScore(createdInvoice.score); // Set the score from the created invoice
+    setShowScoreDialog(true); // Show the score dialog
+    setShowConfetti(true); // Show confetti animation
+  };
 
   return (
     <Card className="max-w-2xl mx-auto">
@@ -172,7 +171,7 @@ export default function NewInvoice() {
               <Button type="submit" className="w-full">Create Invoice</Button>
             </form>
           </TabsContent>
-<TabsContent value="upload">
+          <TabsContent value="upload">
             <div className="space-y-4">
               <Label htmlFor="invoice-upload">Upload Invoice</Label>
               <Input
@@ -195,10 +194,8 @@ export default function NewInvoice() {
               <p><strong>Amount:</strong> ${createdInvoice.amount.toFixed(2)}</p>
               <p><strong>Due Date:</strong> {new Date(createdInvoice.due_date).toLocaleDateString()}</p>
               <p><strong>Description:</strong> {createdInvoice.description}</p>
-              <p><strong>Possible Financing:</strong> ${createdInvoice.possible_financing?.toFixed(2) ?? 'N/A'}</p>
               <p><strong>Status:</strong> {createdInvoice.status}</p>
               <p><strong>Created Date:</strong> {new Date(createdInvoice.created_date).toLocaleDateString()}</p>
-              <p><strong>Score:</strong> {createdInvoice.score?.toFixed(2) ?? 'N/A'}</p>
             </div>
             <Button 
               onClick={handleScoreInvoice} 

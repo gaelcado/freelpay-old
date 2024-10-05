@@ -56,20 +56,6 @@ async def get_invoices(current_user: dict = Depends(get_current_user)):
     invoices = get_user_invoices(current_user['username'])
     return [Invoice(**{**invoice, 'created_date': invoice['created_date'].isoformat()}) for invoice in invoices]
 
-@router.post("/{invoice_id}/accept")
-async def accept_invoice(invoice_id: str, current_user: dict = Depends(get_current_user)):
-    result = update_invoice_status(invoice_id, current_user['username'], "accepted")
-    if result:
-        return {"message": "Invoice accepted successfully"}
-    raise HTTPException(status_code=400, detail="Failed to accept invoice")
-
-@router.post("/{invoice_id}/refuse")
-async def refuse_invoice(invoice_id: str, current_user: dict = Depends(get_current_user)):
-    result = update_invoice_status(invoice_id, current_user['username'], "refused")
-    if result:
-        return {"message": "Invoice refused successfully"}
-    raise HTTPException(status_code=400, detail="Failed to refuse invoice")
-
 @router.post("/{invoice_id}/send")
 async def send_invoice(invoice_id: str, current_user: dict = Depends(get_current_user)):
     result = update_invoice_status(invoice_id, current_user['username'], "sent")

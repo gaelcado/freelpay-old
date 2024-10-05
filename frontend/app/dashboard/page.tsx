@@ -21,7 +21,7 @@ type Invoice = {
   created_date: string
   amount: number
   client: string
-  status: 'sent' | 'accepted' | 'financed' | null
+  status: 'Sent' | 'Accepted' | 'Financed' | 'Ongoing'
   financing_date?: string
   possible_financing?: number
   invoice_number: string
@@ -110,9 +110,9 @@ export default function Dashboard() {
 
   const getStatusColor = (status: string | null) => {
     switch (status) {
-      case 'sent': return 'bg-blue-500 hover:bg-blue-600'
-      case 'accepted': return 'bg-green-500 hover:bg-green-600'
-      case 'financed': return 'bg-purple-500 hover:bg-purple-600'
+      case 'Sent': return 'bg-blue-500 hover:bg-blue-600'
+      case 'Accepted': return 'bg-green-500 hover:bg-green-600'
+      case 'Financed': return 'bg-purple-500 hover:bg-purple-600'
       default: return 'bg-gray-500 hover:bg-gray-600'
     }
   }
@@ -141,9 +141,10 @@ export default function Dashboard() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
-                <SelectItem value="sent">Sent</SelectItem>
-                <SelectItem value="accepted">Accepted</SelectItem>
-                <SelectItem value="financed">Financed</SelectItem>
+                <SelectItem value="Sent">Sent</SelectItem>
+                <SelectItem value="Accepted">Accepted</SelectItem>
+                <SelectItem value="Financed">Financed</SelectItem>
+                <SelectItem value="Ongoing">Ongoing</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -182,13 +183,13 @@ export default function Dashboard() {
                     : '-'}
                 </TableCell>
                 <TableCell>
-                  {!invoice.status && (
+                  {invoice.status === 'Ongoing' && (
                     <div className="space-x-2">
                       <Button size="sm" onClick={() => handleSend(invoice.id)}>Send</Button>
                       <Button size="sm" variant="outline" onClick={() => handleView(invoice.id)}>View</Button>
                     </div>
                   )}
-                  {(invoice.status === 'sent' || invoice.status === 'accepted' || invoice.status === 'financed') && (
+                  {(invoice.status === 'Sent' || invoice.status === 'Accepted' || invoice.status === 'Financed') && (
                     <Button size="sm" variant="outline" onClick={() => handleView(invoice.id)}>View</Button>
                   )}
                 </TableCell>
