@@ -6,7 +6,8 @@ services:
     instance_count: 1
     instance_size_slug: basic-xxs
     routes:
-      - path: /api
+      - path: /
+        service: backend  # Assurez-vous que le service est correctement référencé
     envs:
       - key: MONGO_URI
         value: ${MONGO_URI}
@@ -26,6 +27,7 @@ services:
     instance_size_slug: basic-xxs
     routes:
       - path: /
+        service: frontend  # Assurez-vous que le service est correctement référencé
     envs:
       - key: NEXT_PUBLIC_API_URL
         value: ${NEXT_PUBLIC_API_URL}
