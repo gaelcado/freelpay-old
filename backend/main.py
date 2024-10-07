@@ -22,7 +22,7 @@ app = FastAPI()
 # Augmentez la taille maximale des fichiers téléchargés à 10 Mo
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Ajustez ceci pour la sécurité en production
+    allow_origins=["http://localhost:3000"],  # Allow your frontend's origin
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
