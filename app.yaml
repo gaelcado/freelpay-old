@@ -1,4 +1,4 @@
-name: spike-ai
+name: freelpay-nextjs
 services:
   - name: backend
     dockerfile_path: backend/Dockerfile
