@@ -9,7 +9,7 @@ import sys
 
 load_dotenv()
 
-MONGODB_URI = os.getenv("MONGO_URI", "mongodb://mongodb:27017/freelpay_db")
+MONGODB_URI = os.getenv("MONGO_URI")
 MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "freelpay_db")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")  # Load the frontend URL
 
