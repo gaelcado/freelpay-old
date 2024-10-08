@@ -3,6 +3,9 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Debugging: List files in the current directory
+RUN ls -la
+
 # Copy package.json and package-lock.json before other files
 COPY package*.json ./
 
