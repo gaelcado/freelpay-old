@@ -25,7 +25,7 @@ services:
         value: ${FRONTEND_URL}
    
   - name: frontend
-    source_dir:frontend
+    source_dir: frontend
     github:
       branch: main
       deploy_on_push: false
