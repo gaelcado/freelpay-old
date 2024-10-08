@@ -25,7 +25,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000", 
         "http://frontend:3000", 
-        "https://freelpay-nextjs-pm2fo.ondigitalocean.app"
+        "https://freelpay-nextjs-pm2fo.ondigitalocean.app",
+        "https://freelpay.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],
