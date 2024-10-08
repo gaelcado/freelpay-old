@@ -14,7 +14,7 @@ import { DateRangePicker } from '@/components/ui/react-day-picker'
 import { DateRange } from 'react-day-picker'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://freelpay-nextjs-pm2fo.ondigitalocean.app/api'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://freelpay.com/api";
 console.log('API_URL', API_URL)
 
 type Invoice = {

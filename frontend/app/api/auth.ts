@@ -1,7 +1,7 @@
 // app/api/auth.ts
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://freelpay-nextjs-pm2fo.ondigitalocean.app/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://freelpay.com/api";
 
 export const login = async (username: string, password: string) => {
   const formData = new URLSearchParams();

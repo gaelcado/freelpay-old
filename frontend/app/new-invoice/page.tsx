@@ -14,7 +14,7 @@ import axios from 'axios'
 import Confetti from 'react-confetti'
 import { useRouter } from 'next/navigation'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://freelpay-nextjs-pm2fo.ondigitalocean.app/api'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://freelpay.com/api";
 console.log('API_URL', API_URL)
 
 interface CreatedInvoice {
