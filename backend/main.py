@@ -12,16 +12,14 @@ import os
 from dependencies import get_current_user
 from fastapi.staticfiles import StaticFiles
 import logging
-from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 load_dotenv()
 
 app = FastAPI()
 
-# Ajout du middleware de redirection HTTPS avant tout autre middleware
-app.add_middleware(HTTPSRedirectMiddleware)
-
 # Configurez CORS et autres middlewares ici
+
+# Augmentez la taille maximale des fichiers téléchargés à 10 Mo
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -39,7 +37,6 @@ app.add_middleware(
 # Configurez la taille maximale du corps de la requête à 10 Mo
 app.max_request_size = 10 * 1024 * 1024  # 10 Mo en octets
 
-# Inclusion des routers pour les différentes fonctionnalités
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(user.router, prefix="/users", tags=["users"])
 app.include_router(invoice.router, prefix="/invoices", tags=["invoices"])
@@ -47,7 +44,6 @@ app.include_router(invoice.router, prefix="/invoices", tags=["invoices"])
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
 class UserCreate(BaseModel):
     username: str
     password: str
@@ -83,6 +79,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     access_token = create_access_token(data={"sub": form_data.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
+# Example protected route
 @app.get("/users/me")
 async def read_users_me(current_user: dict = Depends(get_current_user)):
     user_info = {
@@ -92,11 +89,11 @@ async def read_users_me(current_user: dict = Depends(get_current_user)):
         "siret_number": current_user.get('siret_number', ''),
         "phone": current_user.get('phone', ''),
         "address": current_user.get('address', ''),
-        "id_document_status": current_user.get('id_document_status', 'not_uploaded'),
+        "id_document_status": current_user.get('id_document_status', 'not_uploaded'),  # Include id_document_status
     }
     logging.debug(f"User info retrieved: {user_info}")
     return user_info
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, proxy_headers=True)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
