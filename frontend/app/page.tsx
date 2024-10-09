@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { login, signup } from './api/auth'
+import { useAuth } from '@/components/AuthContext'
 
 export default function Home() {
   const [isLogin, setIsLogin] = useState(true)
@@ -20,6 +21,7 @@ export default function Home() {
   const [address, setAddress] = useState('')
   const { toast } = useToast()
   const router = useRouter()
+  const { setIsAuthenticated } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,6 +29,7 @@ export default function Home() {
       if (isLogin) {
         const data = await login(username, password)
         localStorage.setItem('token', data.access_token)
+        setIsAuthenticated(true)
         router.push('/dashboard')
       } else {
         await signup(username, email, password, siretNumber, phone, address)

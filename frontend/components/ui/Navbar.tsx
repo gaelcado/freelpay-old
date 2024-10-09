@@ -1,22 +1,39 @@
 "use client"
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, navigationMenuTriggerStyle } from "@/components/ui/navigation-menu"
 import { Menu } from 'lucide-react'
 import { ModeToggle } from '@/components/mode-toggle'
 import Image from 'next/image'
+import { useAuth } from '@/components/AuthContext'
+import { useToast } from "@/components/ui/use-toast"
 
-const Navbar = () => {
+export default function Navbar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const { isAuthenticated, setIsAuthenticated } = useAuth()
+  const { toast } = useToast()
 
   const routes = [
-    { href: '/profile', label: 'My Profile' },
-    { href: '/new-invoice', label: 'New Invoice' },
-    { href: '/dashboard', label: 'My Dashboard' },
+    { href: '/new-invoice', label: 'New Invoice', requireAuth: false },
+    { href: '/profile', label: 'My Profile', requireAuth: true },
+    { href: '/dashboard', label: 'My Dashboard', requireAuth: true },
   ]
+
+  const filteredRoutes = routes.filter(route => !route.requireAuth || isAuthenticated)
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    setIsAuthenticated(false)
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out.",
+    })
+    router.push('/')
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -32,7 +49,7 @@ const Navbar = () => {
           </Link>
           <NavigationMenu className="hidden md:flex">
             <NavigationMenuList>
-              {routes.map((route) => (
+              {filteredRoutes.map((route) => (
                 <NavigationMenuItem key={route.href}>
                   <Link href={route.href} legacyBehavior passHref>
                     <NavigationMenuLink className={navigationMenuTriggerStyle()} active={pathname === route.href}>
@@ -46,6 +63,15 @@ const Navbar = () => {
         </div>
         <div className="flex items-center space-x-4">
           <ModeToggle />
+          {!isAuthenticated ? (
+            <Link href="/">
+              <Button variant="outline">Login</Button>
+            </Link>
+          ) : (
+            <Button variant="outline" onClick={handleLogout}>
+              Logout
+            </Button>
+          )}
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="outline" className="md:hidden">
@@ -55,7 +81,7 @@ const Navbar = () => {
             </SheetTrigger>
             <SheetContent position="left">
               <nav className="flex flex-col space-y-4">
-                {routes.map((route) => (
+                {filteredRoutes.map((route) => (
                   <Link
                     key={route.href}
                     href={route.href}
@@ -74,5 +100,3 @@ const Navbar = () => {
     </header>
   )
 }
-
-export default Navbar

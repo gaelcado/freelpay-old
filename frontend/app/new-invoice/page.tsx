@@ -90,11 +90,12 @@ export default function NewInvoice() {
           title: 'Invoice Uploaded',
           description: 'Your invoice has been successfully uploaded and processed.',
         })
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error uploading invoice:', error)
+        const errorMessage = error.response?.data?.detail || error.message || 'Failed to upload invoice. Please try again.'
         toast({
           title: 'Error',
-          description: 'Failed to upload invoice. Please try again.',
+          description: errorMessage,
           variant: 'destructive',
         })
       }
