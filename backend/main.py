@@ -44,6 +44,7 @@ app.include_router(invoice.router, prefix="/invoices", tags=["invoices"])
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
 class UserCreate(BaseModel):
     username: str
     password: str

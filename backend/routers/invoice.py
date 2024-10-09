@@ -51,7 +51,7 @@ async def upload_invoice(file: UploadFile = File(...), current_user: User = Depe
         return Invoice(**result)
     raise HTTPException(status_code=400, detail="Failed to process invoice")
 
-@router.get("/", response_model=List[Invoice])
+@router.get("/list", response_model=List[Invoice])
 async def get_invoices(current_user: dict = Depends(get_current_user)):
     invoices = get_user_invoices(current_user['username'])
     return [Invoice(**{**invoice, 'created_date': invoice['created_date'].isoformat()}) for invoice in invoices]

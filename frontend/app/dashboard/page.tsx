@@ -51,7 +51,7 @@ export default function Dashboard() {
   const fetchInvoices = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get(`${API_URL}/invoices`, {
+      const response = await axios.get(`${API_URL}/invoices/list`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setInvoices(response.data)
