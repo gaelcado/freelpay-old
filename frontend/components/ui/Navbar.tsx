@@ -10,12 +10,16 @@ import { ModeToggle } from '@/components/mode-toggle'
 import Image from 'next/image'
 import { useAuth } from '@/components/AuthContext'
 import { useToast } from "@/components/ui/use-toast"
+import { useTheme } from 'next-themes'
+import logoDark from '../../public/assets/logo_freelpay.png'
+import logoLight from '../../public/assets/logo_freelpay_black.png'
 
 export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const { isAuthenticated, setIsAuthenticated } = useAuth()
   const { toast } = useToast()
+  const { theme } = useTheme()
 
   const routes = isAuthenticated
     ? [
@@ -44,12 +48,12 @@ export default function Navbar() {
       <div className="container flex h-14 items-center justify-between">
         <div className="flex items-center">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <Image
-              src="/assets/freelpay_logo.png"
-              alt="Freelpay Logo"
-              width={100}
-              height={32}
-            />
+          <Image
+          src={theme === 'dark' ? logoDark : logoLight}
+          alt="Freelpay Logo"
+          width={100}
+          height={32}
+          />
           </Link>
           <NavigationMenu className="hidden md:flex">
             <NavigationMenuList>
