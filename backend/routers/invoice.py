@@ -29,19 +29,23 @@ async def create_invoice_route(invoice: InvoiceCreate, current_user: dict = Depe
     raise HTTPException(status_code=400, detail="Failed to create invoice")
 
 @router.post("/upload", response_model=Invoice)
-async def upload_invoice(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+async def upload_invoice(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
     
     invoice_data = await process_invoice(file)
+    
+    if "error" in invoice_data:
+        raise HTTPException(status_code=400, detail=invoice_data["error"])
+    
     score = calculate_score(invoice_data)
     possible_financing = invoice_data["amount"] * (1 - score)
     
     invoice_db = InvoiceInDB(
         **invoice_data,
-        user_id=current_user.username,
+        user_id=current_user['username'],
         created_date=datetime.now(),
-        status="ongoing",
+        status="Ongoing",
         score=score,
         possible_financing=possible_financing
     )
@@ -58,7 +62,7 @@ async def get_invoices(current_user: dict = Depends(get_current_user)):
 
 @router.post("/{invoice_id}/send")
 async def send_invoice(invoice_id: str, current_user: dict = Depends(get_current_user)):
-    result = update_invoice_status(invoice_id, current_user['username'], "sent")
+    result = update_invoice_status(invoice_id, current_user['username'], "Sent")
     if result:
         return {"message": "Invoice sent successfully"}
     raise HTTPException(status_code=400, detail="Failed to send invoice")

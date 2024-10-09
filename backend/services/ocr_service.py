@@ -8,6 +8,11 @@ from langchain.prompts import ChatPromptTemplate
 from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 import os
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Load OpenAI API key from environment variable
 openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -26,8 +31,19 @@ async def process_invoice(file):
     for image in images:
         text += pytesseract.image_to_string(image)
     
+    logger.debug("Extracted text: %s", text)
+
+    # Use LLM to determine if the text describes an invoice
+    if not await is_invoice(text):
+        logger.debug("Document is not an invoice.")
+        return {"error": "Oops, it seems you uploaded the wrong document. Please upload an invoice to proceed."}
+    
     # Use ChatOpenAI to extract invoice information
-    llm = ChatOpenAI(temperature=0, model_name="gpt-4-0125-preview", openai_api_key=openai_api_key)
+    llm = ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0,
+        openai_api_key=openai_api_key
+    )
     
     parser = PydanticOutputParser(pydantic_object=InvoiceData)
     
@@ -39,9 +55,42 @@ async def process_invoice(file):
     
     chain = prompt | llm | parser
     
-    result = chain.invoke({
-        "text": text,
-        "format_instructions": parser.get_format_instructions()
-    })
+    try:
+        result = chain.invoke({
+            "text": text,
+            "format_instructions": parser.get_format_instructions()
+        })
+        logger.debug("LLM result: %s", result)
+        return result.dict()
+    except Exception as e:
+        logger.error("Error invoking LLM: %s", e)
+        return {"error": "Failed to process the invoice. Please try again."}
+
+async def is_invoice(text):
+    # Use LLM to semantically analyze the text
+    llm = ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0,
+        openai_api_key=openai_api_key
+    )
     
-    return result.dict()
+async def is_invoice(text):
+    # Use LLM to semantically analyze the text
+    llm = ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0,
+        openai_api_key=openai_api_key
+    )
+    
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are an AI assistant trained to determine if a given text describes an invoice. An invoice typically includes details such as invoice number, client name, amount due, and due date."),
+        ("human", f"Does the following text describe an invoice? Please respond with 'yes' or 'no'.\n\n{text}")
+    ])
+    
+    try:
+        response = llm.invoke(prompt.format_messages())
+        logger.debug("LLM response for invoice check: %s", response.content)
+        return response.content.strip().lower() == "yes"
+    except Exception as e:
+        logger.error("Error checking if document is an invoice: %s", e)
+        return False
