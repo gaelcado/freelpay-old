@@ -17,14 +17,18 @@ export default function Navbar() {
   const { isAuthenticated, setIsAuthenticated } = useAuth()
   const { toast } = useToast()
 
-  const routes = [
-    { href: '/new-invoice', label: 'New Invoice', requireAuth: false },
-    { href: '/profile', label: 'My Profile', requireAuth: true },
-    { href: '/dashboard', label: 'My Dashboard', requireAuth: true },
-  ]
+  const routes = isAuthenticated
+    ? [
+        { href: '/new-invoice', label: 'New Invoice', requireAuth: true },
+        { href: '/profile', label: 'My Profile', requireAuth: true },
+        { href: '/dashboard', label: 'My Dashboard', requireAuth: true },
+      ]
+    : [
+        { href: '/create-invoice', label: 'Try It Now', requireAuth: false },
+      ];
 
   const filteredRoutes = routes.filter(route => !route.requireAuth || isAuthenticated)
-
+  
   const handleLogout = () => {
     localStorage.removeItem('token')
     setIsAuthenticated(false)

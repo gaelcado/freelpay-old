@@ -66,3 +66,51 @@ async def send_invoice(invoice_id: str, current_user: dict = Depends(get_current
     if result:
         return {"message": "Invoice sent successfully"}
     raise HTTPException(status_code=400, detail="Failed to send invoice")
+
+# In your invoice.py router
+
+@router.post("/create-demo", response_model=Invoice)
+async def create_demo_invoice(invoice: InvoiceCreate):
+    score = calculate_score(invoice.dict())
+    possible_financing = invoice.amount * (1 - score)
+    
+    invoice_data = Invoice(
+        invoice_number=invoice.invoice_number,
+        client=invoice.client,
+        amount=invoice.amount,
+        due_date=invoice.due_date,
+        description=invoice.description,
+        created_date=datetime.now(),
+        status="Demo",
+        score=score,
+        possible_financing=possible_financing
+    )
+    
+    return invoice_data
+
+@router.post("/upload-demo", response_model=Invoice)
+async def upload_demo_invoice(file: UploadFile = File(...)):
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+    
+    invoice_data = await process_invoice(file)
+    
+    if "error" in invoice_data:
+        raise HTTPException(status_code=400, detail=invoice_data["error"])
+    
+    score = calculate_score(invoice_data)
+    possible_financing = invoice_data["amount"] * (1 - score)
+    
+    invoice = Invoice(
+        invoice_number=invoice_data["invoice_number"],
+        client=invoice_data["client"],
+        amount=invoice_data["amount"],
+        due_date=invoice_data["due_date"],
+        description=invoice_data.get("description"),
+        created_date=datetime.now(),
+        status="Demo",
+        score=score,
+        possible_financing=possible_financing
+    )
+    
+    return invoice

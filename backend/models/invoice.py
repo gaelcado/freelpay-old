@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from pydantic import Field
+import uuid
 
 class InvoiceCreate(BaseModel):
     invoice_number: str
@@ -25,7 +26,7 @@ class InvoiceInDB(BaseModel):
     score: Optional[float] = None
 
 class Invoice(BaseModel):
-    id: str
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     invoice_number: str
     client: str
     amount: float
