@@ -1,30 +1,31 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, Annotated
 
 class UserCreate(BaseModel):
-    username: str
+    username: Annotated[str, Field(min_length=3, max_length=50)]
     email: EmailStr
-    password: str
-    siret_number: str
-    phone: str
-    address: str
+    password: Annotated[str, Field(min_length=8)]
+    siret_number: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
 
 class UserInDB(BaseModel):
     username: str
     email: EmailStr
-    hashed_password: str
-    siret_number: str
-    phone: str
-    address: str
+    password: str
+    siret_number: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
     id_document: Optional[str] = None
-    id_document_status: Optional[str] = "not_uploaded"  # New field for document status
+    id_document_status: Optional[str] = "not_uploaded"
 
 class User(BaseModel):
+    id: str
     username: str
-    email: EmailStr
-    siret_number: str
-    phone: str
-    address: str
+    email: str
+    siret_number: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None

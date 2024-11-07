@@ -4,17 +4,19 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from models.user import UserCreate, UserInDB, User
-from database.mongodb import find_user, insert_user, users_collection
+from database.db import find_user, insert_user
+from database.supabase_client import supabase
 import os
 from dotenv import load_dotenv
 from dependencies import SECRET_KEY, ALGORITHM
+import bcrypt
+import logging
 
 # Load environment variables
 load_dotenv()
 
 router = APIRouter()
 
-# This should be stored securely, preferably as an environment variable
 if not SECRET_KEY:
     raise ValueError("No JWT_SECRET_KEY set for JWT authentication")
 
@@ -22,6 +24,13 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -36,13 +45,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = find_user(username)
+    user = await find_user(username)
     if user is None:
         raise credentials_exception
     return User(**user)
-
-# Mock database (replace with actual database in production)
-fake_users_db = {}
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -50,62 +56,82 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-def get_user(username: str):
-    if username in fake_users_db:
-        user_dict = fake_users_db[username]
-        return UserInDB(**user_dict)
-
-def authenticate_user(username: str, password: str):
-    user = get_user(username)
-    if not user:
-        return False
-    if not verify_password(password, user.hashed_password):
-        return False
-    return user
-
-def create_access_token(data: dict, expires_delta: timedelta = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
 @router.post("/signup")
 async def signup(user: UserCreate):
-    if find_user(user.username):
-        raise HTTPException(status_code=400, detail="Username already registered")
-    
-    # Check for duplicate email
-    existing_user = users_collection.find_one({"email": user.email})
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    hashed_password = get_password_hash(user.password)
-    insert_user(
-        user.username,
-        user.email,
-        hashed_password,
-        user.siret_number,
-        user.phone,
-        user.address,
-        is_admin=False
-    )
-    return {"message": "User created successfully"}
+    try:
+        # Vérification du username
+        if await find_user(user.username):
+            logging.warning(f"Signup failed: username {user.username} already exists")
+            raise HTTPException(
+                status_code=400,
+                detail="Username already registered"
+            )
+        
+        # Check for duplicate email using Supabase query
+        existing_user = supabase.table('users').select('*').eq('email', user.email).execute()
+        if existing_user.data:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        hashed_password = get_password_hash(user.password)
+        result = await insert_user(
+            user.username,
+            user.email,
+            hashed_password,
+            user.siret_number,
+            user.phone,
+            user.address,
+            is_admin=False
+        )
+        return {"message": "User created successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Unexpected signup error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error"
+        )
 
 @router.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = find_user(form_data.username)
-    if not user or not verify_password(form_data.password, user['password']):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+    try:
+        user = await find_user(form_data.username)
+        if not user:
+            logging.info(f"Login failed: user not found")
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect username or password"
+            )
+
+        if not pwd_context.verify(form_data.password, user['password']):
+            logging.info(f"Login failed: invalid password")
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect username or password"
+            )
+
+        access_token = create_access_token(
+            data={"sub": user['username']}
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user['username']}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
+
+        logging.info(f"Login successful")
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "id": user['id'],
+                "username": user['username'],
+                "email": user['email'],
+                "siret_number": user.get('siret_number'),
+                "phone": user.get('phone'),
+                "address": user.get('address')
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Login error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error"
+        )

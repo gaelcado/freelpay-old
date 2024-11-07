@@ -1,9 +1,10 @@
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
-from database.mongodb import find_user
+from database.db import find_user
 import os
 from dotenv import load_dotenv
+from database.supabase_client import supabase
 
 load_dotenv()
 
@@ -26,20 +27,17 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     except JWTError:
         raise credentials_exception
     
-    user = find_user(username)
+    user = await find_user(username)
     if user is None:
         raise credentials_exception
     
-    # Ensure all required fields are present
-    user_dict = {
-        "_id": str(user['_id']), 
+    return {
+        "id": user['id'],
         "username": user['username'],
-        "email": user.get('email'),
+        "email": user['email'],
         "siret_number": user.get('siret_number', ''),
         "phone": user.get('phone', ''),
         "address": user.get('address', ''),
         "id_document": user.get('id_document', None),
         "id_document_status": user.get('id_document_status', '')
     }
-    
-    return user_dict

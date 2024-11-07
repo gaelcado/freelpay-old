@@ -1,8 +1,8 @@
 import os
 import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from models.user import UserUpdate
-from database.mongodb import update_user_profile, update_user_id_document
+from models.user import UserUpdate, User
+from database.db import update_user_profile, update_user_id_document
 from dependencies import get_current_user
 from fastapi.responses import JSONResponse
 import logging
@@ -32,23 +32,19 @@ async def upload_id_document(
             content = await file.read()
             await buffer.write(content)
 
-        result = update_user_id_document(current_user['username'], file_path)
+        result = await update_user_id_document(current_user['username'], file_path)
 
-        logging.debug(f"Update result for user {current_user['username']}: {result.modified_count} document(s) modified.")
+        await update_user_profile(current_user['id'], {"id_document_status": "pending"})
 
-        if result.modified_count > 0:
-            update_user_profile(current_user['_id'], {"id_document_status": "pending"})
-            return JSONResponse(
-                status_code=200,
-                content={"message": "ID document uploaded successfully", "file_path": file_path}
-            )
-        else:
-            os.remove(file_path)
-            raise HTTPException(status_code=500, detail="Failed to update user record")
+        return JSONResponse(
+            status_code=200,
+            content={"message": "ID document uploaded successfully", "file_path": file_path}
+        )
 
     except Exception as e:
         if os.path.exists(file_path):
             os.remove(file_path)
+        logging.error(f"Error uploading ID document: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 @router.put("/update")
@@ -56,7 +52,19 @@ async def update_user_profile_route(user_update: UserUpdate, current_user: dict 
     if current_user.get('id_document_status') == "pending":
         user_update.id_document = None  # Prevent ID document update
 
-    result = update_user_profile(current_user['_id'], user_update.model_dump(exclude_unset=True))
-    if result.modified_count > 0:
+    result = await update_user_profile(current_user['id'], user_update.model_dump(exclude_unset=True))
+    if result:
         return {"message": "Profile updated successfully"}
     raise HTTPException(status_code=400, detail="Failed to update profile")
+
+@router.get("/me", response_model=User)
+async def read_users_me(current_user: dict = Depends(get_current_user)):
+    # Assurez-vous que les clés correspondent au modèle User
+    return {
+        "id": current_user["id"],
+        "username": current_user["username"],
+        "email": current_user["email"],
+        "siret_number": current_user.get("siret_number"),
+        "phone": current_user.get("phone"),
+        "address": current_user.get("address")
+    }
