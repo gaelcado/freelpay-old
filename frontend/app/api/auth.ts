@@ -30,7 +30,12 @@ export const signUpWithEmail = async (
       }
     })
 
-    if (authError) throw authError
+    if (authError) {
+      if (authError.message.includes('User already registered')) {
+        throw new Error('Un compte existe déjà avec cette adresse email. Veuillez vous connecter.')
+      }
+      throw authError
+    }
 
     return authData;
   } catch (error) {
@@ -93,6 +98,24 @@ export const updateUserMetadata = async (metadata: UserMetadata) => {
       ...metadata,
       registration_incomplete: false
     }
+  })
+
+  if (error) throw error
+  return data
+}
+
+export const requestPasswordReset = async (email: string) => {
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/auth/reset-password`,
+  })
+
+  if (error) throw error
+  return data
+}
+
+export const updateUserPassword = async (newPassword: string) => {
+  const { data, error } = await supabase.auth.updateUser({
+    password: newPassword
   })
 
   if (error) throw error
