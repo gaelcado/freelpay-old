@@ -119,3 +119,42 @@ async def update_user_id_document(username: str, file_path: str):
     except Exception as e:
         logging.error(f"Error updating user ID document: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error updating document: {str(e)}")
+
+async def find_user_by_email(email: str):
+    try:
+        response = supabase.from_('users')\
+            .select('*')\
+            .eq('email', email)\
+            .execute()
+        
+        if not response.data:
+            return None
+            
+        return response.data[0]
+    except Exception as e:
+        logging.error(f"Database error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Database error")
+
+# Ajout de la fonction create_user
+async def create_user(user_data: dict):
+    try:
+        # Vérifier si l'utilisateur existe déjà
+        existing_user = await find_user_by_email(user_data['email'])
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
+
+        # S'assurer que l'ID est présent
+        if 'id' not in user_data:
+            user_data['id'] = str(uuid.uuid4())
+
+        # Insérer l'utilisateur dans la table users
+        response = supabase.table('users').insert(user_data).execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=400, detail="Failed to create user")
+            
+        return response.data[0]
+        
+    except Exception as e:
+        logging.error(f"Error creating user: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

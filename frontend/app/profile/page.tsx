@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import axios from 'axios'
+import api from '@/lib/api'
+import { useAuth } from '@/components/AuthContext' // Import the Auth context
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://freelpay.com'
 console.log('API_URL', API_URL)
@@ -47,26 +48,25 @@ export default function Profile() {
 
   const fetchUserProfile = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/users/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const userData = response.data;
-      setName(userData.username);
-      setEmail(userData.email);
-      setSiret(userData.siret_number);
-      setPhone(userData.phone);
-      setAddress(userData.address);
+      const response = await api.get('/users/me')
+      const userData = response.data
+
+      // Populate fields based on user data
+      setName(userData.username || ''); // Set name if available
+      setEmail(userData.email || ''); // Always set email
+      setSiret(userData.siret_number || ''); // Set SIRET if available
+      setPhone(userData.phone || ''); // Set phone if available
+      setAddress(userData.address || ''); // Set address if available
       setIdDocument(userData.id_document || null);
-      setIdDocumentStatus(userData.id_document_status); // Set the ID document status
+      setIdDocumentStatus(userData.id_document_status || 'not_uploaded'); // Set ID document status
 
       setOriginalData({
         email: userData.email,
-        siret_number: userData.siret_number,
-        phone: userData.phone,
-        address: userData.address,
+        siret_number: userData.siret_number || '',
+        phone: userData.phone || '',
+        address: userData.address || '',
         id_document: userData.id_document || null,
-        id_document_status: userData.id_document_status || 'not_uploaded' // Include id_document_status
+        id_document_status: userData.id_document_status || 'not_uploaded'
       });
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -92,14 +92,11 @@ export default function Profile() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const token = localStorage.getItem('token')
-      await axios.put(`${API_URL}/users/update`, {
+      await api.put('/users/update', {
         email,
         siret_number: siret,
         phone,
         address
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       })
       toast({
         title: 'Profile Updated',
@@ -124,7 +121,7 @@ export default function Profile() {
       formData.append('file', file)
       try {
         const token = localStorage.getItem('token')
-        await axios.post(`${API_URL}/users/upload-id`, formData, {
+        await api.post('/users/upload-id', formData, {
           headers: { 
             'Content-Type': 'multipart/form-data',
             Authorization: `Bearer ${token}`

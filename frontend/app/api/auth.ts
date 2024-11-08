@@ -1,66 +1,100 @@
 // app/api/auth.ts
-import axios from 'axios';
+import { supabase } from '@/lib/supabase'
+import { AuthError } from '@supabase/supabase-js'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://freelpay.com/api";
+interface UserMetadata {
+  username: string
+  siret_number: string
+  phone: string
+  address: string
+}
 
-// Créez une instance axios avec une configuration par défaut
-const axiosInstance = axios.create({
-  baseURL: API_URL,
-});
-
-// Ajoutez un intercepteur pour ajouter le token aux requêtes
-axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Ajouter un intercepteur pour gérer les erreurs
-axiosInstance.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
-export const login = async (username: string, password: string) => {
+export const signUpWithEmail = async (
+  email: string,
+  password: string,
+  metadata: UserMetadata,
+  captchaToken: string
+) => {
+  console.log('Starting signup process...')
   try {
-    const formData = new URLSearchParams();
-    formData.append('username', username);
-    formData.append('password', password);
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          ...metadata,
+          registration_incomplete: true
+        },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        captchaToken
+      }
+    })
 
-    const response = await axiosInstance.post('/auth/login', formData, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    });
-    return response.data;
+    if (authError) throw authError
+
+    return authData;
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Signup error:', error);
     throw error;
   }
-};
+}
 
-export const signup = async (username: string, email: string, password: string, siretNumber: string, phone: string, address: string) => {
-  const response = await axiosInstance.post('/auth/signup', {
-    username,
+export const signInWithEmail = async (
+  email: string,
+  password: string
+) => {
+  console.log('Starting signin process...')
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
-    password,
-    siret_number: siretNumber,
-    phone,
-    address,
-  });
-  return response.data;
-};
+    password
+  })
 
-// Ajoutez cette fonction pour récupérer le profil
-export const getProfile = async () => {
-  const response = await axiosInstance.get('/users/me');
-  return response.data;
-};
+  console.log('Signin response:', { data, error })
+  if (error) throw error
+  return data
+}
+
+export const signInWithGoogle = async () => {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`,
+      queryParams: {
+        prompt: 'select_account'
+      }
+    }
+  })
+
+  if (error) throw error
+  return data
+}
+
+export const resetPassword = async (email: string) => {
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/auth/reset-password`,
+  })
+
+  if (error) throw error
+  return data
+}
+
+export const updatePassword = async (newPassword: string) => {
+  const { data, error } = await supabase.auth.updateUser({
+    password: newPassword
+  })
+
+  if (error) throw error
+  return data
+}
+
+export const updateUserMetadata = async (metadata: UserMetadata) => {
+  const { data, error } = await supabase.auth.updateUser({
+    data: {
+      ...metadata,
+      registration_incomplete: false
+    }
+  })
+
+  if (error) throw error
+  return data
+}

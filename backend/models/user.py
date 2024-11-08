@@ -2,9 +2,9 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, Annotated
 
 class UserCreate(BaseModel):
+    id: str
     username: Annotated[str, Field(min_length=3, max_length=50)]
     email: EmailStr
-    password: Annotated[str, Field(min_length=8)]
     siret_number: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None

@@ -1,147 +1,255 @@
-// app/page.tsx
 'use client'
 
-import { useState } from 'react'
+export const dynamic = 'force-dynamic'
+
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { login, signup } from './api/auth'
+import { signInWithEmail, signUpWithEmail, signInWithGoogle } from './api/auth'
 import { useAuth } from '@/components/AuthContext'
+import { FcGoogle } from 'react-icons/fc'
+import { AuthError } from '@supabase/supabase-js'
+import HCaptcha from '@hcaptcha/react-hcaptcha'
+
+console.log('Environment variables:', {
+  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 10) + '...',
+})
+
+// Définir les props du SignUpForm
+interface SignUpFormProps {
+  username: string;
+  setUsername: (value: string) => void;
+  siretNumber: string;
+  setSiretNumber: (value: string) => void;
+  phone: string;
+  setPhone: (value: string) => void;
+  address: string;
+  setAddress: (value: string) => void;
+  captcha: any;
+  setCaptchaToken: (token: string) => void;
+}
+
+const SignUpForm = ({
+  username,
+  setUsername,
+  siretNumber,
+  setSiretNumber,
+  phone,
+  setPhone,
+  address,
+  setAddress,
+  captcha,
+  setCaptchaToken
+}: SignUpFormProps) => {
+  return (
+    <div className="space-y-4">
+      <Input
+        placeholder="Username"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        required
+      />
+      <Input
+        placeholder="SIRET Number"
+        value={siretNumber}
+        onChange={(e) => setSiretNumber(e.target.value)}
+        required
+      />
+      <Input
+        placeholder="Phone"
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        required
+      />
+      <Input
+        placeholder="Address"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+        required
+      />
+      <div className="mt-4">
+        <HCaptcha
+          ref={captcha}
+          sitekey="4724bc9e-e97e-4b72-a166-4d1680f09926"
+          onVerify={(token) => setCaptchaToken(token)}
+          onExpire={() => setCaptchaToken('')}
+        />
+      </div>
+    </div>
+  )
+}
 
 export default function Home() {
   const [isLogin, setIsLogin] = useState(true)
-  const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [username, setUsername] = useState('')
   const [siretNumber, setSiretNumber] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const { toast } = useToast()
   const router = useRouter()
   const { setIsAuthenticated } = useAuth()
+  const captcha = useRef(null)
+  const [captchaToken, setCaptchaToken] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       if (isLogin) {
-        const data = await login(username, password)
-        localStorage.setItem('token', data.access_token)
-        setIsAuthenticated(true)
-        router.push('/dashboard')
+        console.log('Tentative de connexion avec :', { email })
+        const { session, user } = await signInWithEmail(email, password)
+        console.log('Connexion réussie :', { session: !!session, user: !!user })
+        if (session) {
+          setIsAuthenticated(true)
+          router.push('/dashboard')
+        } else {
+          toast({
+            title: 'Erreur',
+            description: 'Identifiants incorrects',
+            variant: 'destructive',
+          })
+        }
       } else {
-        await signup(username, email, password, siretNumber, phone, address)
-        toast({
-          title: 'Signup Successful',
-          description: 'Please log in with your new account.',
-        })
-        setIsLogin(true)
+        if (!captchaToken) {
+          toast({
+            title: 'Erreur',
+            description: 'Veuillez compléter le captcha',
+            variant: 'destructive',
+          })
+          return
+        }
+
+        console.log('Tentative d\'inscription...')
+        const { user } = await signUpWithEmail(email, password, {
+          username,
+          siret_number: siretNumber,
+          phone,
+          address
+        }, captchaToken)
+        
+        if (user) {
+          if (captcha.current) {
+            // @ts-ignore
+            captcha.current.resetCaptcha()
+          }
+          setCaptchaToken('')
+          toast({
+            title: 'Succès',
+            description: 'Veuillez vérifier votre email pour confirmer votre compte.',
+          })
+          setIsLogin(true)
+        }
       }
     } catch (error) {
+      console.error('Détails de l\'erreur d\'authentification:', error)
+      const message = error instanceof AuthError ? error.message : 'Authentication failed'
       toast({
-        title: 'Error',
-        description: 'An error occurred. Please try again.',
+        title: 'Erreur',
+        description: message,
         variant: 'destructive',
       })
     }
   }
 
+  const handleModeChange = () => {
+    setIsLogin(!isLogin)
+    setCaptchaToken('')
+    setEmail('')
+    setPassword('')
+    if (!isLogin) {
+      // Réinitialiser les champs du formulaire d'inscription
+      setUsername('')
+      setSiretNumber('')
+      setPhone('')
+      setAddress('')
+    }
+    if (captcha.current) {
+      // @ts-ignore
+      captcha.current.resetCaptcha()
+    }
+  }
+
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
-      <Card className="w-[400px] shadow-xl">
-        <CardHeader>
-          <CardTitle className="text-3xl font-bold text-center">
-            {isLogin ? 'Welcome Back' : 'Join Freelpay'}
+    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <Card className="w-[400px] shadow-lg">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl text-center">
+            {isLogin ? 'Sign In' : 'Sign Up'}
           </CardTitle>
+          <p className="text-sm text-gray-500 text-center">
+            For your privacy and security
+          </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
-            </div>
             {!isLogin && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="siretNumber">SIRET Number</Label>
-                  <Input
-                    id="siretNumber"
-                    type="text"
-                    placeholder="SIRET Number"
-                    value={siretNumber}
-                    onChange={(e) => setSiretNumber(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="Phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    type="text"
-                    placeholder="Address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    required
-                  />
-                </div>
-              </>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+              <SignUpForm
+                username={username}
+                setUsername={setUsername}
+                siretNumber={siretNumber}
+                setSiretNumber={setSiretNumber}
+                phone={phone}
+                setPhone={setPhone}
+                address={address}
+                setAddress={setAddress}
+                captcha={captcha}
+                setCaptchaToken={setCaptchaToken}
               />
-            </div>
-            <Button type="submit" className="w-full">
-              {isLogin ? 'Login' : 'Sign Up'}
+            )}
+            <Input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <Input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <Button 
+              type="submit" 
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {isLogin ? 'Sign In' : 'Sign Up'}
             </Button>
           </form>
-        </CardContent>
-        <CardFooter>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">OR</span>
+            </div>
+          </div>
+
           <Button
-            variant="link"
-            onClick={() => setIsLogin(!isLogin)}
-            className="w-full"
+            variant="outline"
+            onClick={() => signInWithGoogle()}
+            className="w-full border-input bg-background hover:bg-accent hover:text-accent-foreground"
           >
-            {isLogin ? 'Need an account? Sign Up' : 'Already have an account? Login'}
+            <FcGoogle className="mr-2 h-5 w-5" />
+            Sign in with Google
           </Button>
-        </CardFooter>
+
+          <Button
+            variant="ghost"
+            onClick={handleModeChange}
+            className="w-full hover:bg-accent hover:text-accent-foreground"
+          >
+            {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
+          </Button>
+        </CardContent>
       </Card>
     </div>
   )

@@ -3,9 +3,6 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Debugging: List files in the current directory
-RUN ls -la
-
 # Copy package.json and package-lock.json before other files
 COPY package*.json ./
 
@@ -17,7 +14,13 @@ COPY . .
 
 # Build the Next.js application
 ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 RUN npm run build
 
 EXPOSE 3000
