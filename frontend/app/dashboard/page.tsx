@@ -13,6 +13,7 @@ import { format } from 'date-fns'
 import { DateRangePicker } from '@/components/ui/react-day-picker'
 import { DateRange } from 'react-day-picker'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { useTranslation } from '@/hooks/useTranslation'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://freelpay.com/api";
 console.log('API_URL', API_URL)
@@ -39,6 +40,7 @@ export default function Dashboard() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [showSendDialog, setShowSendDialog] = useState(false) // State for dialog visibility
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null) // State to hold the selected invoice ID
+  const { t } = useTranslation()
 
   useEffect(() => {
     fetchInvoices()
@@ -121,27 +123,27 @@ export default function Dashboard() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="text-3xl font-bold">My Dashboard</CardTitle>
+        <CardTitle className="text-3xl font-bold">{t('dashboard.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="flex-1">
-            <Label htmlFor="search">Search</Label>
+            <Label htmlFor="search">{t('dashboard.search')}</Label>
             <Input
               id="search"
-              placeholder="Search by client or invoice number"
+              placeholder={t('common.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="w-full md:w-48">
-            <Label htmlFor="status">Status</Label>
+            <Label htmlFor="status">{t('dashboard.status')}</Label>
             <Select onValueChange={setStatusFilter}>
               <SelectTrigger id="status">
-                <SelectValue placeholder="All" />
+                <SelectValue placeholder={t('common.all')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="all">{t('common.all')}</SelectItem>
                 <SelectItem value="Sent">Sent</SelectItem>
                 <SelectItem value="Accepted">Accepted</SelectItem>
                 <SelectItem value="Financed">Financed</SelectItem>
@@ -150,20 +152,20 @@ export default function Dashboard() {
             </Select>
           </div>
           <div className="w-full md:w-auto">
-            <Label>Date Range</Label>
+            <Label>{t('dashboard.dateRange')}</Label>
             <DateRangePicker onChange={setDateRange} />
           </div>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Created Date</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Financing Date</TableHead>
-              <TableHead>Possible Financing</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead>{t('dashboard.createdDate')}</TableHead>
+              <TableHead>{t('dashboard.amount')}</TableHead>
+              <TableHead>{t('dashboard.client')}</TableHead>
+              <TableHead>{t('dashboard.status')}</TableHead>
+              <TableHead>{t('dashboard.financingDate')}</TableHead>
+              <TableHead>{t('dashboard.possibleFinancing')}</TableHead>
+              <TableHead>{t('dashboard.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -186,12 +188,12 @@ export default function Dashboard() {
                 <TableCell>
                   {invoice.status === 'Ongoing' && (
                     <div className="space-x-2">
-                      <Button size="sm" onClick={() => handleSend(invoice.id)}>Send</Button>
-                      <Button size="sm" variant="outline" onClick={() => handleView(invoice.id)}>View</Button>
+                      <Button size="sm" onClick={() => handleSend(invoice.id)}>{t('dashboard.send')}</Button>
+                      <Button size="sm" variant="outline" onClick={() => handleView(invoice.id)}>{t('dashboard.view')}</Button>
                     </div>
                   )}
                   {(invoice.status === 'Sent' || invoice.status === 'Accepted' || invoice.status === 'Financed') && (
-                    <Button size="sm" variant="outline" onClick={() => handleView(invoice.id)}>View</Button>
+                    <Button size="sm" variant="outline" onClick={() => handleView(invoice.id)}>{t('dashboard.view')}</Button>
                   )}
                 </TableCell>
               </TableRow>
@@ -202,14 +204,14 @@ export default function Dashboard() {
       <Dialog open={showSendDialog} onOpenChange={setShowSendDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Send Invoice</DialogTitle>
+            <DialogTitle>{t('dashboard.confirmSendTitle')}</DialogTitle>
           </DialogHeader>
           <div>
-            Are you sure you want to send this invoice to the client?
+            {t('dashboard.confirmSendMessage')}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSendDialog(false)}>Cancel</Button>
-            <Button onClick={confirmSendInvoice}>Send</Button>
+            <Button variant="outline" onClick={() => setShowSendDialog(false)}>{t('dashboard.cancel')}</Button>
+            <Button onClick={confirmSendInvoice}>{t('dashboard.send')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

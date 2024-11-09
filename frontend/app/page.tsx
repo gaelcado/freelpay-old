@@ -13,6 +13,7 @@ import { useAuth } from '@/components/AuthContext'
 import { FcGoogle } from 'react-icons/fc'
 import { AuthError } from '@supabase/supabase-js'
 import HCaptcha from '@hcaptcha/react-hcaptcha'
+import { useTranslation } from '@/hooks/useTranslation'
 
 console.log('Environment variables:', {
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
@@ -46,28 +47,30 @@ const SignUpForm = ({
   captcha,
   setCaptchaToken
 }: SignUpFormProps) => {
+  const { t } = useTranslation()
+  
   return (
     <div className="space-y-4">
       <Input
-        placeholder="Username"
+        placeholder={t('common.username')}
         value={username}
         onChange={(e) => setUsername(e.target.value)}
         required
       />
       <Input
-        placeholder="SIRET Number"
+        placeholder={t('common.siretNumber')}
         value={siretNumber}
         onChange={(e) => setSiretNumber(e.target.value)}
         required
       />
       <Input
-        placeholder="Phone"
+        placeholder={t('common.phone')}
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
         required
       />
       <Input
-        placeholder="Address"
+        placeholder={t('common.address')}
         value={address}
         onChange={(e) => setAddress(e.target.value)}
         required
@@ -87,47 +90,48 @@ const SignUpForm = ({
 const ResetPasswordCard = ({ setIsLogin }: { setIsLogin: (value: boolean) => void }) => {
   const [email, setEmail] = useState('')
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       await requestPasswordReset(email)
       toast({
-        title: 'Email envoyé',
-        description: 'Vérifiez votre boîte mail pour réinitialiser votre mot de passe.',
+        title: t('common.success'),
+        description: t('auth.verifyEmail'),
       })
       setIsLogin(true)
     } catch (error) {
       toast({
-        title: 'Erreur',
-        description: 'Impossible d\'envoyer l\'email de réinitialisation',
+        title: t('common.error'),
+        description: t('auth.updateError'),
         variant: 'destructive',
       })
     }
   }
 
   return (
-    <Card className="w-[400px] shadow-lg">
+    <Card className="w-[400px] shadow-lg border bg-card">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl text-center">
-          Réinitialiser le mot de passe
+        <CardTitle className="text-2xl text-center text-foreground">
+          {t('auth.resetPassword')}
         </CardTitle>
-        <p className="text-sm text-gray-500 text-center">
-          Entrez votre adresse e-mail ci-dessous pour définir un nouveau mot de passe.
+        <p className="text-sm text-muted-foreground text-center">
+          {t('auth.verifyEmail')}
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleResetPassword} className="space-y-4">
           <Input
             type="email"
-            placeholder="Adresse e-mail"
+            placeholder={t('common.email')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
           <div className="flex flex-col space-y-2">
             <Button type="submit" className="w-full">
-              Envoyer un lien
+              {t('common.sendLink')}
             </Button>
             <Button 
               type="button" 
@@ -135,7 +139,7 @@ const ResetPasswordCard = ({ setIsLogin }: { setIsLogin: (value: boolean) => voi
               onClick={() => setIsLogin(true)}
               className="w-full"
             >
-              Retour
+              {t('common.cancel')}
             </Button>
           </div>
         </form>
@@ -158,35 +162,35 @@ export default function Home() {
   const { setIsAuthenticated } = useAuth()
   const captcha = useRef(null)
   const [captchaToken, setCaptchaToken] = useState('')
+  const { t } = useTranslation()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       if (isLogin) {
-        console.log('Tentative de connexion avec :', { email })
+        console.log(t('auth.attemptingLogin'), { email })
         const { session, user } = await signInWithEmail(email, password)
-        console.log('Connexion réussie :', { session: !!session, user: !!user })
         if (session) {
           setIsAuthenticated(true)
           router.push('/dashboard')
         } else {
           toast({
-            title: 'Erreur',
-            description: 'Identifiants incorrects',
+            title: t('common.error'),
+            description: t('auth.invalidCredentials'),
             variant: 'destructive',
           })
         }
       } else {
         if (!captchaToken) {
           toast({
-            title: 'Erreur',
-            description: 'Veuillez compléter le captcha',
+            title: t('common.error'),
+            description: t('auth.completeCaptcha'),
             variant: 'destructive',
           })
           return
         }
 
-        console.log('Tentative d\'inscription...')
+        console.log(t('auth.attemptingSignup'))
         const { user } = await signUpWithEmail(email, password, {
           username,
           siret_number: siretNumber,
@@ -201,17 +205,17 @@ export default function Home() {
           }
           setCaptchaToken('')
           toast({
-            title: 'Succès',
-            description: 'Veuillez vérifier votre email pour confirmer votre compte.',
+            title: t('common.success'),
+            description: t('auth.verifyEmail'),
           })
           setIsLogin(true)
         }
       }
     } catch (error) {
       console.error('Détails de l\'erreur d\'authentification:', error)
-      const message = error instanceof AuthError ? error.message : 'Authentication failed'
+      const message = error instanceof AuthError ? error.message : t('auth.authenticationFailed')
       toast({
-        title: 'Erreur',
+        title: t('common.error'),
         description: message,
         variant: 'destructive',
       })
@@ -237,20 +241,20 @@ export default function Home() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+    <div className="flex min-h-screen items-center justify-center bg-background">
       {isResetPassword ? (
         <ResetPasswordCard setIsLogin={(value) => {
           setIsLogin(value)
           setIsResetPassword(false)
         }} />
       ) : (
-        <Card className="w-[400px] shadow-lg">
+        <Card className="w-[400px] shadow-lg border bg-card">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">
-              {isLogin ? 'Sign In' : 'Sign Up'}
+            <CardTitle className="text-2xl text-center text-foreground">
+              {isLogin ? t('common.signIn') : t('common.signUp')}
             </CardTitle>
-            <p className="text-sm text-gray-500 text-center">
-              {isLogin ? 'For your privacy and security' : 'Create your account'}
+            <p className="text-sm text-muted-foreground text-center">
+              {isLogin ? t('common.securityMessage') : t('common.createAccount')}
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -271,14 +275,14 @@ export default function Home() {
               )}
               <Input
                 type="email"
-                placeholder="Email"
+                placeholder={t('common.email')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
               <Input
                 type="password"
-                placeholder="Password"
+                placeholder={t('common.password')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -287,7 +291,7 @@ export default function Home() {
                 type="submit" 
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
               >
-                {isLogin ? 'Sign In' : 'Sign Up'}
+                {isLogin ? t('common.signIn') : t('common.signUp')}
               </Button>
             </form>
 
@@ -296,7 +300,7 @@ export default function Home() {
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">OR</span>
+                <span className="bg-background px-2 text-muted-foreground">{t('common.or')}</span>
               </div>
             </div>
 
@@ -306,7 +310,7 @@ export default function Home() {
               className="w-full border-input bg-background hover:bg-accent hover:text-accent-foreground"
             >
               <FcGoogle className="mr-2 h-5 w-5" />
-              Sign in with Google
+              {t('common.signInWithGoogle')}
             </Button>
 
             <Button
@@ -314,7 +318,7 @@ export default function Home() {
               onClick={handleModeChange}
               className="w-full hover:bg-accent hover:text-accent-foreground"
             >
-              {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+              {isLogin ? t('auth.dontHaveAccount') : t('auth.alreadyHaveAccount')}
             </Button>
 
             {isLogin && (
@@ -324,7 +328,7 @@ export default function Home() {
                 className="px-0 font-normal"
                 onClick={() => setIsResetPassword(true)}
               >
-                Mot de passe oublié ?
+                {t('auth.forgotPassword')}
               </Button>
             )}
           </CardContent>

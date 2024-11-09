@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import axios from 'axios'
 import Confetti from 'react-confetti'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from '@/hooks/useTranslation'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://freelpay.com/api";
 console.log('API_URL', API_URL)
@@ -43,6 +44,7 @@ export default function NewInvoice() {
   const [score, setScore] = useState<number | null>(null); // Add this line
   const { toast } = useToast()
   const router = useRouter()
+  const { t } = useTranslation()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,14 +61,14 @@ export default function NewInvoice() {
       })
       setCreatedInvoice(response.data)
       toast({
-        title: 'Invoice Created',
-        description: `Invoice created successfully. You can score it now.`,
+        title: t('createInvoice.successTitle'),
+        description: t('createInvoice.successDescription'),
       })
     } catch (error) {
       console.error('Error creating invoice:', error)
       toast({
-        title: 'Error',
-        description: 'Failed to create invoice. Please try again.',
+        title: t('common.error'),
+        description: t('createInvoice.errorDescription'),
         variant: 'destructive',
       })
     }
@@ -87,14 +89,14 @@ export default function NewInvoice() {
         })
         setCreatedInvoice(response.data)
         toast({
-          title: 'Invoice Uploaded',
-          description: 'Your invoice has been successfully uploaded and processed.',
+          title: t('createInvoice.uploadSuccessTitle'),
+          description: t('createInvoice.uploadSuccessDescription'),
         })
       } catch (error: any) {
         console.error('Error uploading invoice:', error)
-        const errorMessage = error.response?.data?.detail || error.message || 'Failed to upload invoice. Please try again.'
+        const errorMessage = error.response?.data?.detail || error.message || t('createInvoice.uploadErrorDescription')
         toast({
-          title: 'Error',
+          title: t('common.error'),
           description: errorMessage,
           variant: 'destructive',
         })
@@ -114,19 +116,19 @@ export default function NewInvoice() {
   return (
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle className="text-3xl font-bold">Create New Invoice</CardTitle>
+        <CardTitle className="text-3xl font-bold">{t('createInvoice.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="manual">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="manual">Create Manually</TabsTrigger>
-            <TabsTrigger value="upload">Upload Invoice</TabsTrigger>
+            <TabsTrigger value="manual">{t('createInvoice.createManually')}</TabsTrigger>
+            <TabsTrigger value="upload">{t('createInvoice.uploadInvoice')}</TabsTrigger>
           </TabsList>
           <TabsContent value="manual">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="invoice-number">Invoice Number</Label>
+                  <Label htmlFor="invoice-number">{t('createInvoice.invoiceNumber')}</Label>
                   <Input
                     id="invoice-number"
                     value={invoiceNumber}
@@ -134,7 +136,7 @@ export default function NewInvoice() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="client-name">Client Name</Label>
+                  <Label htmlFor="client-name">{t('createInvoice.clientName')}</Label>
                   <Input
                     id="client-name"
                     value={clientName}
@@ -144,7 +146,7 @@ export default function NewInvoice() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="amount">Amount</Label>
+                  <Label htmlFor="amount">{t('createInvoice.amount')}</Label>
                   <Input
                     id="amount"
                     type="number"
@@ -153,7 +155,7 @@ export default function NewInvoice() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="due-date">Due Date</Label>
+                  <Label htmlFor="due-date">{t('createInvoice.dueDate')}</Label>
                   <Input
                     id="due-date"
                     type="date"
@@ -163,33 +165,33 @@ export default function NewInvoice() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">{t('createInvoice.description')}</Label>
                 <Textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
-              <Button type="submit" className="w-full">Create Invoice</Button>
+              <Button type="submit" className="w-full">{t('createInvoice.createButton')}</Button>
             </form>
           </TabsContent>
           <TabsContent value="upload">
             <div className="space-y-4">
-              <Label htmlFor="invoice-upload">Upload Invoice</Label>
+              <Label htmlFor="invoice-upload">{t('createInvoice.uploadInvoice')}</Label>
               <Input
                 id="invoice-upload"
                 type="file"
                 onChange={handleFileUpload}
               />
               <p className="text-sm text-muted-foreground">
-                Upload your invoice file (PDF, JPG, PNG) and we'll process it for you.
+                {t('createInvoice.uploadDescription')}
               </p>
             </div>
           </TabsContent>
         </Tabs>
         {createdInvoice && (
           <div className="mt-8">
-            <h3 className="text-lg font-semibold mb-4">Created Invoice</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('createInvoice.createdInvoice')}</h3>
             <div className="space-y-2">
               <p><strong>Invoice Number:</strong> {createdInvoice.invoice_number}</p>
               <p><strong>Client:</strong> {createdInvoice.client}</p>

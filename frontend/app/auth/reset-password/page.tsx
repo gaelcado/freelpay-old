@@ -7,20 +7,22 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { updateUserPassword } from '@/app/api/auth'
+import { useTranslation } from '@/hooks/useTranslation'
 
 export default function ResetPassword() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const router = useRouter()
   const { toast } = useToast()
+  const { t } = useTranslation()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (newPassword !== confirmPassword) {
       toast({
-        title: 'Erreur',
-        description: 'Les mots de passe ne correspondent pas',
+        title: t('common.error'),
+        description: t('auth.passwordsDontMatch'),
         variant: 'destructive',
       })
       return
@@ -29,14 +31,14 @@ export default function ResetPassword() {
     try {
       await updateUserPassword(newPassword)
       toast({
-        title: 'Succès',
-        description: 'Votre mot de passe a été mis à jour',
+        title: t('common.success'),
+        description: t('auth.passwordUpdateSuccess'),
       })
       router.push('/dashboard')
     } catch (error) {
       toast({
-        title: 'Erreur',
-        description: 'Impossible de mettre à jour le mot de passe',
+        title: t('common.error'),
+        description: t('auth.passwordUpdateError'),
         variant: 'destructive',
       })
     }
@@ -46,26 +48,26 @@ export default function ResetPassword() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <Card className="w-[400px]">
         <CardHeader>
-          <CardTitle>Réinitialiser le mot de passe</CardTitle>
+          <CardTitle>{t('auth.resetPassword')}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               type="password"
-              placeholder="Nouveau mot de passe"
+              placeholder={t('auth.newPassword')}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
             />
             <Input
               type="password"
-              placeholder="Confirmer le mot de passe"
+              placeholder={t('auth.confirmPassword')}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
             />
             <Button type="submit" className="w-full">
-              Mettre à jour le mot de passe
+              {t('auth.updatePassword')}
             </Button>
           </form>
         </CardContent>
