@@ -20,30 +20,39 @@ export default function AuthCallback() {
       if (session) {
         try {
           const { user } = session
-          // Créer l'entrée dans la table users seulement après confirmation email
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
-            method: 'POST',
+          // Check if user already exists
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/me`, {
             headers: {
-              'Content-Type': 'application/json',
               'Authorization': `Bearer ${session.access_token}`
-            },
-            body: JSON.stringify({
-              id: user.id,
-              username: user.user_metadata.username,
-              email: user.email,
-              siret_number: user.user_metadata.siret_number,
-              phone: user.user_metadata.phone,
-              address: user.user_metadata.address
-            })
+            }
           });
 
-          if (!response.ok) {
-            throw new Error('Failed to create user profile');
+          if (response.status === 404) {
+            // User doesn't exist, create new profile
+            const createResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+              },
+              body: JSON.stringify({
+                id: user.id,
+                username: user.user_metadata.username || user.email?.split('@')[0],
+                email: user.email,
+                siret_number: user.user_metadata.siret_number || '',
+                phone: user.user_metadata.phone || '',
+                address: user.user_metadata.address || ''
+              })
+            });
+
+            if (!createResponse.ok) {
+              throw new Error('Failed to create user profile');
+            }
           }
 
           router.push('/dashboard')
         } catch (error) {
-          console.error('Error creating user profile:', error)
+          console.error('Error handling auth callback:', error)
           router.push('/')
         }
       } else {
