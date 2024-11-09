@@ -32,3 +32,5 @@ class UserUpdate(BaseModel):
     siren_number: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    id_document: Optional[str] = None
+    id_document_status: Optional[str] = None

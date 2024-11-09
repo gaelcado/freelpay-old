@@ -50,9 +50,13 @@ async def upload_id_document(
 @router.put("/update")
 async def update_user_profile_route(user_update: UserUpdate, current_user: dict = Depends(get_current_user)):
     if current_user.get('id_document_status') == "pending":
-        user_update.id_document = None  # Prevent ID document update
+        update_data = user_update.model_dump(exclude_unset=True)
+        if 'id_document' in update_data:
+            del update_data['id_document']
+    else:
+        update_data = user_update.model_dump(exclude_unset=True)
 
-    result = await update_user_profile(current_user['id'], user_update.model_dump(exclude_unset=True))
+    result = await update_user_profile(current_user['id'], update_data)
     if result:
         return {"message": "Profile updated successfully"}
     raise HTTPException(status_code=400, detail="Failed to update profile")
