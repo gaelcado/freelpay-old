@@ -103,6 +103,20 @@ export default function Profile() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      // If SIREN has changed and is not locked, validate it first
+      if (siren !== originalData.siren_number && !sirenLocked) {
+        try {
+          await validateSiren(siren, t)
+        } catch (error: any) {
+          toast({
+            title: t('common.error'),
+            description: error.message,
+            variant: 'destructive',
+          })
+          return
+        }
+      }
+
       await api.put('/users/update', {
         email,
         siren_number: siren,

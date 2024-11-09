@@ -296,6 +296,27 @@ export default function Home() {
           return
         }
 
+        // Validate SIREN before signup
+        if (!sirenNumber || sirenNumber.length !== 9) {
+          toast({
+            title: t('common.error'),
+            description: t('common.sirenValidation.incorrectFormat'),
+            variant: 'destructive',
+          })
+          return
+        }
+
+        try {
+          await validateSiren(sirenNumber, t)
+        } catch (error: any) {
+          toast({
+            title: t('common.error'),
+            description: t('common.sirenValidation.pleaseValidate'),
+            variant: 'destructive',
+          })
+          return
+        }
+
         console.log(t('auth.attemptingSignup'))
         const { user } = await signUpWithEmail(email, password, {
           username,

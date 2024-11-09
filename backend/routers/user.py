@@ -63,12 +63,11 @@ async def update_user_profile_route(user_update: UserUpdate, current_user: dict 
 
 @router.get("/me", response_model=User)
 async def read_users_me(current_user: dict = Depends(get_current_user)):
-    # Assurez-vous que les clés correspondent au modèle User
     return {
         "id": current_user["id"],
         "username": current_user["username"],
         "email": current_user["email"],
-        "siret_number": current_user.get("siret_number"),
+        "siren_number": current_user.get("siren_number"),
         "phone": current_user.get("phone"),
         "address": current_user.get("address")
     }

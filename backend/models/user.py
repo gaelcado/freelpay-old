@@ -14,6 +14,7 @@ class UserInDB(BaseModel):
     email: EmailStr
     password: str
     siren_number: Optional[str] = None
+    siren_validated: Optional[bool] = False
     phone: Optional[str] = None
     address: Optional[str] = None
     id_document: Optional[str] = None
