@@ -5,8 +5,9 @@ from models.invoice import InvoiceCreate, Invoice, InvoiceInDB
 from services.ocr_service import process_invoice
 from services.scoring_service import calculate_score
 from dependencies import get_current_user
-from database.mongodb import create_invoice, get_user_invoices, update_invoice_status
+from database.db import create_invoice, get_user_invoices, update_invoice_status
 from datetime import datetime
+import logging
 
 router = APIRouter()
 
@@ -17,13 +18,13 @@ async def create_invoice_route(invoice: InvoiceCreate, current_user: dict = Depe
     
     invoice_data = InvoiceInDB(
         **invoice.dict(),
-        user_id=current_user['username'],
+        user_id=current_user['id'],
         created_date=datetime.now(),
         score=score,
         possible_financing=possible_financing
     )
     
-    result = create_invoice(invoice_data.dict())
+    result = await create_invoice(invoice_data.dict())
     if result:
         return Invoice(**result)
     raise HTTPException(status_code=400, detail="Failed to create invoice")
@@ -43,29 +44,45 @@ async def upload_invoice(file: UploadFile = File(...), current_user: dict = Depe
     
     invoice_db = InvoiceInDB(
         **invoice_data,
-        user_id=current_user['username'],
+        user_id=current_user['id'],
         created_date=datetime.now(),
         status="Ongoing",
         score=score,
         possible_financing=possible_financing
     )
     
-    result = create_invoice(invoice_db.dict())
+    result = await create_invoice(invoice_db.dict())
     if result:
         return Invoice(**result)
     raise HTTPException(status_code=400, detail="Failed to process invoice")
 
 @router.get("/list", response_model=List[Invoice])
 async def get_invoices(current_user: dict = Depends(get_current_user)):
-    invoices = get_user_invoices(current_user['username'])
-    return [Invoice(**{**invoice, 'created_date': invoice['created_date'].isoformat()}) for invoice in invoices]
+    invoices = await get_user_invoices(current_user['id'])
+    if not invoices:
+        return []
+    return [
+        Invoice(
+            **{
+                **invoice,
+                'created_date': invoice['created_date'] if isinstance(invoice['created_date'], str) 
+                               else invoice['created_date'].isoformat()
+            }
+        ) 
+        for invoice in invoices
+    ]
 
-@router.post("/{invoice_id}/send")
-async def send_invoice(invoice_id: str, current_user: dict = Depends(get_current_user)):
-    result = update_invoice_status(invoice_id, current_user['username'], "Sent")
-    if result:
-        return {"message": "Invoice sent successfully"}
-    raise HTTPException(status_code=400, detail="Failed to send invoice")
+@router.post("/{invoice_id}/send", response_model=Invoice)
+async def send_invoice(invoice_id: str, current_user: User = Depends(get_current_user)):
+    try:
+        # Mettre à jour le statut de la facture à "Sent"
+        updated_invoice = await update_invoice_status(invoice_id, current_user['id'], "Sent")
+        if not updated_invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        return updated_invoice
+    except Exception as e:
+        logging.error(f"Error sending invoice: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # In your invoice.py router
 

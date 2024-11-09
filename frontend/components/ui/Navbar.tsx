@@ -13,6 +13,8 @@ import { useToast } from "@/components/ui/use-toast"
 import { useTheme } from 'next-themes'
 import logoDark from '../../public/assets/logo_freelpay.png'
 import logoLight from '../../public/assets/logo_freelpay_black.png'
+import LanguageSelector from '@/components/ui/LanguageSelector'
+import { useTranslation } from '@/hooks/useTranslation'
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -20,15 +22,16 @@ export default function Navbar() {
   const { isAuthenticated, setIsAuthenticated } = useAuth()
   const { toast } = useToast()
   const { theme } = useTheme()
+  const { t } = useTranslation()
 
   const routes = isAuthenticated
     ? [
-        { href: '/new-invoice', label: 'New Invoice', requireAuth: true },
-        { href: '/profile', label: 'My Profile', requireAuth: true },
-        { href: '/dashboard', label: 'My Dashboard', requireAuth: true },
+        { href: '/new-invoice', label: t('common.newInvoice'), requireAuth: true },
+        { href: '/profile', label: t('common.myProfile'), requireAuth: true },
+        { href: '/dashboard', label: t('common.myDashboard'), requireAuth: true },
       ]
     : [
-        { href: '/create-invoice', label: 'Try It Now', requireAuth: false },
+        { href: '/create-invoice', label: t('common.tryItNow'), requireAuth: false },
       ];
 
   const filteredRoutes = routes.filter(route => !route.requireAuth || isAuthenticated)
@@ -69,16 +72,13 @@ export default function Navbar() {
             </NavigationMenuList>
           </NavigationMenu>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
+          <LanguageSelector />
           <ModeToggle />
-          {!isAuthenticated ? (
-            <Link href="/">
-              <Button variant="outline">Login</Button>
-            </Link>
+          {isAuthenticated ? (
+            <Button onClick={handleLogout}>Logout</Button>
           ) : (
-            <Button variant="outline" onClick={handleLogout}>
-              Logout
-            </Button>
+            <Button onClick={() => router.push('/')}>Sign In</Button>
           )}
           <Sheet>
             <SheetTrigger asChild>

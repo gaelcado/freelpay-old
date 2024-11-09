@@ -1,10 +1,10 @@
-import '../styles/global.css'
+import '../styles/globals.css'
 import { Inter } from 'next/font/google'
 import { ThemeProvider } from '@/components/ui/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
-import Navbar from '@/components/ui/Navbar'
-import Footer from '@/components/ui/Footer'
 import { AuthProvider } from '@/components/AuthContext'
+import { LanguageProvider } from '@/contexts/LanguageContext'
+import Navbar from '@/components/ui/Navbar'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -14,12 +14,12 @@ export const metadata = {
   icons: {
     icon: '/assets/favicon.png',
   },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 }
 
 export default function RootLayout({
@@ -28,17 +28,16 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-gradient-to-b from-background to-secondary min-h-screen flex flex-col`}>
+    <html lang="en">
+      <body className={inter.className}>
         <AuthProvider>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <Navbar />
-            <main className="container mx-auto py-8 px-4 md:px-8 flex-grow">
+          <LanguageProvider>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+              <Navbar />
               {children}
-            </main>
-            <Footer />
-            <Toaster />
-          </ThemeProvider>
+              <Toaster />
+            </ThemeProvider>
+          </LanguageProvider>
         </AuthProvider>
       </body>
     </html>

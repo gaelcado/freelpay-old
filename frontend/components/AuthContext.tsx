@@ -1,22 +1,40 @@
 // components/AuthContext.tsx
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 
-type AuthContextType = {
+export const AuthContext = createContext<{
   isAuthenticated: boolean
   setIsAuthenticated: (value: boolean) => void
-}
+}>({
+  isAuthenticated: false,
+  setIsAuthenticated: () => {},
+})
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    setIsAuthenticated(!!token)
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setIsAuthenticated(!!session)
+      setIsLoading(false)
+    }
+    
+    checkAuth()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session)
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
+
+  if (isLoading) {
+    return null // ou un composant de chargement
+  }
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated }}>
@@ -25,10 +43,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   )
 }
 
-export const useAuth = () => {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
-}
+export const useAuth = () => useContext(AuthContext)

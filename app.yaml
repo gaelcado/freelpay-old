@@ -13,10 +13,10 @@ services:
     routes:
       - path: /api
     envs:
-      - key: MONGO_URI
-        value: ${MONGO_URI}
-      - key: MONGODB_DB_NAME
-        value: ${MONGODB_DB_NAME}
+      - key: SUPABASE_URL
+        value: ${SUPABASE_URL}
+      - key: SUPABASE_ANON_KEY
+        value: ${SUPABASE_ANON_KEY}
       - key: JWT_SECRET_KEY
         value: ${JWT_SECRET_KEY}
       - key: OPENAI_API_KEY
@@ -39,3 +39,7 @@ services:
     envs:
       - key: NEXT_PUBLIC_API_URL
         value: ${NEXT_PUBLIC_API_URL}
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: ${SUPABASE_URL}
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        value: ${SUPABASE_ANON_KEY}

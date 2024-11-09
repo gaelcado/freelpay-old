@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import axios from 'axios'
+import api from '@/lib/api'
+import { useAuth } from '@/components/AuthContext' // Import the Auth context
+import { useTranslation } from '@/hooks/useTranslation' // Ajouter le hook de traduction
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://freelpay.com'
 console.log('API_URL', API_URL)
@@ -40,6 +42,7 @@ export default function Profile() {
   const [idDocument, setIdDocument] = useState<string | null>(null); // State for ID document
   const [idDocumentStatus, setIdDocumentStatus] = useState('not_uploaded'); // State for ID document status
   const { toast } = useToast()
+  const { t } = useTranslation() // Ajouter le hook de traduction
 
   useEffect(() => {
     fetchUserProfile();
@@ -47,26 +50,25 @@ export default function Profile() {
 
   const fetchUserProfile = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/users/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const userData = response.data;
-      setName(userData.username);
-      setEmail(userData.email);
-      setSiret(userData.siret_number);
-      setPhone(userData.phone);
-      setAddress(userData.address);
+      const response = await api.get('/users/me')
+      const userData = response.data
+
+      // Populate fields based on user data
+      setName(userData.username || ''); // Set name if available
+      setEmail(userData.email || ''); // Always set email
+      setSiret(userData.siret_number || ''); // Set SIRET if available
+      setPhone(userData.phone || ''); // Set phone if available
+      setAddress(userData.address || ''); // Set address if available
       setIdDocument(userData.id_document || null);
-      setIdDocumentStatus(userData.id_document_status); // Set the ID document status
+      setIdDocumentStatus(userData.id_document_status || 'not_uploaded'); // Set ID document status
 
       setOriginalData({
         email: userData.email,
-        siret_number: userData.siret_number,
-        phone: userData.phone,
-        address: userData.address,
+        siret_number: userData.siret_number || '',
+        phone: userData.phone || '',
+        address: userData.address || '',
         id_document: userData.id_document || null,
-        id_document_status: userData.id_document_status || 'not_uploaded' // Include id_document_status
+        id_document_status: userData.id_document_status || 'not_uploaded'
       });
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -92,26 +94,23 @@ export default function Profile() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const token = localStorage.getItem('token')
-      await axios.put(`${API_URL}/users/update`, {
+      await api.put('/users/update', {
         email,
         siret_number: siret,
         phone,
         address
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       })
       toast({
-        title: 'Profile Updated',
-        description: 'Your profile has been successfully updated.',
+        title: t('common.success'),
+        description: t('profile.updateSuccess'),
       })
       setHasChanges(false)
       setOriginalData({ email, siret_number: siret, phone, address })
     } catch (error) {
       console.error('Error updating profile:', error)
       toast({
-        title: 'Error',
-        description: 'Failed to update profile. Please try again.',
+        title: t('common.error'),
+        description: t('profile.updateError'),
         variant: 'destructive',
       })
     }
@@ -124,22 +123,22 @@ export default function Profile() {
       formData.append('file', file)
       try {
         const token = localStorage.getItem('token')
-        await axios.post(`${API_URL}/users/upload-id`, formData, {
+        await api.post('/users/upload-id', formData, {
           headers: { 
             'Content-Type': 'multipart/form-data',
             Authorization: `Bearer ${token}`
           }
         })
         toast({
-          title: 'ID Document Uploaded',
-          description: 'Your ID document has been successfully uploaded for verification.',
+          title: t('common.success'),
+          description: t('profile.updateSuccess'),
         })
-        setIdDocument(URL.createObjectURL(file)); // Preview the uploaded file
+        setIdDocument(URL.createObjectURL(file))
       } catch (error) {
         console.error('Error uploading ID document:', error)
         toast({
-          title: 'Error',
-          description: 'Failed to upload ID document. Please try again.',
+          title: t('common.error'),
+          description: t('profile.updateError'),
           variant: 'destructive',
         })
       }
@@ -149,13 +148,13 @@ export default function Profile() {
   return (
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle className="text-3xl font-bold">My Profile</CardTitle>
+        <CardTitle className="text-3xl font-bold">{t('profile.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">{t('common.username')}</Label>
               <Input
                 id="name"
                 value={name}
@@ -164,7 +163,7 @@ export default function Profile() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('common.email')}</Label>
               <Input
                 id="email"
                 type="email"
@@ -175,7 +174,7 @@ export default function Profile() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="siret">SIRET Number</Label>
+              <Label htmlFor="siret">{t('common.siretNumber')}</Label>
               <Input
                 id="siret"
                 value={siret}
@@ -183,7 +182,7 @@ export default function Profile() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phone">{t('common.phone')}</Label>
               <Input
                 id="phone"
                 type="tel"
@@ -193,7 +192,7 @@ export default function Profile() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="address">Address</Label>
+            <Label htmlFor="address">{t('common.address')}</Label>
             <Input
               id="address"
               value={address}
@@ -201,15 +200,15 @@ export default function Profile() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="id-document">ID Document</Label>
+            <Label htmlFor="id-document">{t('profile.idDocument')}</Label>
             {idDocument ? (
               <div>
                 {idDocument.endsWith('.pdf') ? (
                   <a href={idDocument} target="_blank" rel="noopener noreferrer">
-                    View ID Document
+                    {t('profile.viewIdDocument')}
                   </a>
                 ) : (
-                  <img src={idDocument} alt="ID Document Preview" className="w-full h-auto" />
+                  <img src={idDocument} alt={t('profile.idDocumentPreview')} className="w-full h-auto" />
                 )}
               </div>
             ) : (
@@ -217,25 +216,25 @@ export default function Profile() {
                 id="id-document"
                 type="file"
                 onChange={handleFileUpload}
-                disabled={idDocumentStatus === 'verified' || idDocumentStatus === 'pending'} // Disable if verified or pending
+                disabled={idDocumentStatus === 'verified' || idDocumentStatus === 'pending'}
               />
             )}
           </div>
           <div className="flex items-center space-x-2">
-            <span>Verification Status:</span>
+            <span>{t('profile.verificationStatus')}:</span>
             <Badge variant={
               idDocumentStatus === 'verified' ? "default" : 
               idDocumentStatus === 'pending' ? "secondary" : 
               idDocumentStatus === 'rejected' ? "destructive" : 
               undefined
             }>
-              {idDocumentStatus === 'verified' ? 'Verified' : 
-               idDocumentStatus === 'pending' ? 'Pending Validation' : 
-               'Not Verified'}
+              {idDocumentStatus === 'verified' ? t('profile.verified') : 
+               idDocumentStatus === 'pending' ? t('profile.pendingValidation') : 
+               t('profile.notVerified')}
             </Badge>
           </div>
           <Button type="submit" className="w-full" disabled={!hasChanges}>
-            Update Profile
+            {t('profile.updateProfile')}
           </Button>
         </form>
       </CardContent>
