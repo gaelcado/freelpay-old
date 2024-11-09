@@ -89,7 +89,10 @@ export const translations = {
       view: 'View',
       confirmSendTitle: 'Confirm Send Invoice',
       confirmSendMessage: 'Are you sure you want to send this invoice?',
-      cancel: 'Cancel'
+      cancel: 'Cancel',
+      sendSuccess: 'Invoice Sent',
+      invoiceSentSuccessfully: 'Invoice has been sent successfully',
+      errorSendingInvoice: 'Error sending invoice. Please try again.',
     },
     createInvoice: {
       title: 'Create Invoice',
@@ -209,7 +212,10 @@ export const translations = {
       view: 'Voir',
       confirmSendTitle: 'Confirmer l\'envoi de la facture',
       confirmSendMessage: 'Êtes-vous sûr de vouloir envoyer cette facture ?',
-      cancel: 'Annuler'
+      cancel: 'Annuler',
+      sendSuccess: 'Facture envoyée',
+      invoiceSentSuccessfully: 'La facture a été envoyée avec succès',
+      errorSendingInvoice: 'Erreur lors de l\'envoi de la facture. Veuillez réessayer.',
     },
     createInvoice: {
       title: 'Créer une facture',

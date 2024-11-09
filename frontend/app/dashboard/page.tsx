@@ -8,12 +8,13 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import axios from 'axios'
+import api from '@/lib/api'
 import { format } from 'date-fns'
 import { DateRangePicker } from '@/components/ui/react-day-picker'
 import { DateRange } from 'react-day-picker'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { useTranslation } from '@/hooks/useTranslation'
+import { useToast } from "@/components/ui/use-toast"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://freelpay.com/api";
 console.log('API_URL', API_URL)
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [showSendDialog, setShowSendDialog] = useState(false) // State for dialog visibility
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null) // State to hold the selected invoice ID
   const { t } = useTranslation()
+  const { toast } = useToast()
 
   useEffect(() => {
     fetchInvoices()
@@ -52,10 +54,7 @@ export default function Dashboard() {
 
   const fetchInvoices = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await axios.get(`${API_URL}/invoices/list`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await api.get('/invoices/list')
       setInvoices(response.data)
     } catch (error) {
       console.error('Error fetching invoices:', error)
@@ -95,17 +94,23 @@ export default function Dashboard() {
   const confirmSendInvoice = async () => {
     if (selectedInvoiceId) {
       try {
-        const token = localStorage.getItem('token');
-        await axios.post(`${API_URL}/invoices/${selectedInvoiceId}/send`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        fetchInvoices(); // Refresh the invoices after sending
+        await api.post(`/invoices/${selectedInvoiceId}/send`)
+        await fetchInvoices() // Rafraîchir la liste des factures
+        toast({
+          title: t('dashboard.sendSuccess'),
+          description: t('dashboard.invoiceSentSuccessfully'),
+        })
       } catch (error) {
-        console.error('Error sending invoice:', error);
+        console.error('Error sending invoice:', error)
+        toast({
+          title: t('common.error'),
+          description: t('dashboard.errorSendingInvoice'),
+          variant: 'destructive',
+        })
       }
-      setShowSendDialog(false); // Close the dialog
+      setShowSendDialog(false)
     }
-  };
+  }
 
   const handleView = (invoiceId: string) => {
     console.log('Viewing invoice:', invoiceId)

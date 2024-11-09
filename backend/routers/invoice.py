@@ -7,6 +7,7 @@ from services.scoring_service import calculate_score
 from dependencies import get_current_user
 from database.db import create_invoice, get_user_invoices, update_invoice_status
 from datetime import datetime
+import logging
 
 router = APIRouter()
 
@@ -71,12 +72,17 @@ async def get_invoices(current_user: dict = Depends(get_current_user)):
         for invoice in invoices
     ]
 
-@router.post("/{invoice_id}/send")
-async def send_invoice(invoice_id: str, current_user: dict = Depends(get_current_user)):
-    result = update_invoice_status(invoice_id, current_user['username'], "Sent")
-    if result:
-        return {"message": "Invoice sent successfully"}
-    raise HTTPException(status_code=400, detail="Failed to send invoice")
+@router.post("/{invoice_id}/send", response_model=Invoice)
+async def send_invoice(invoice_id: str, current_user: User = Depends(get_current_user)):
+    try:
+        # Mettre à jour le statut de la facture à "Sent"
+        updated_invoice = await update_invoice_status(invoice_id, current_user['id'], "Sent")
+        if not updated_invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        return updated_invoice
+    except Exception as e:
+        logging.error(f"Error sending invoice: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # In your invoice.py router
 

@@ -10,10 +10,11 @@ import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import axios from 'axios'
+import api from '@/lib/api'
 import Confetti from 'react-confetti'
 import { useRouter } from 'next/navigation'
 import { useTranslation } from '@/hooks/useTranslation'
+import { AxiosError } from 'axios'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://freelpay.com/api";
 console.log('API_URL', API_URL)
@@ -49,15 +50,12 @@ export default function NewInvoice() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const token = localStorage.getItem('token')
-      const response = await axios.post(`${API_URL}/invoices/create`, {
+      const response = await api.post('/invoices/create', {
         invoice_number: invoiceNumber,
         client: clientName,
         amount: parseFloat(amount),
         due_date: dueDate,
         description
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       })
       setCreatedInvoice(response.data)
       toast({
@@ -66,9 +64,13 @@ export default function NewInvoice() {
       })
     } catch (error) {
       console.error('Error creating invoice:', error)
+      const errorMessage = error instanceof AxiosError 
+        ? error.response?.data?.message || error.message 
+        : t('createInvoice.errorDescription')
+      
       toast({
         title: t('common.error'),
-        description: t('createInvoice.errorDescription'),
+        description: errorMessage,
         variant: 'destructive',
       })
     }
@@ -80,21 +82,20 @@ export default function NewInvoice() {
       const formData = new FormData()
       formData.append('file', file)
       try {
-        const token = localStorage.getItem('token')
-        const response = await axios.post(`${API_URL}/invoices/upload`, formData, {
-          headers: { 
-            'Content-Type': 'multipart/form-data',
-            Authorization: `Bearer ${token}`
-          }
+        const response = await api.post('/invoices/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
         })
         setCreatedInvoice(response.data)
         toast({
           title: t('createInvoice.uploadSuccessTitle'),
           description: t('createInvoice.uploadSuccessDescription'),
         })
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error uploading invoice:', error)
-        const errorMessage = error.response?.data?.detail || error.message || t('createInvoice.uploadErrorDescription')
+        const errorMessage = error instanceof AxiosError 
+          ? error.response?.data?.detail || error.message 
+          : t('createInvoice.uploadErrorDescription')
+        
         toast({
           title: t('common.error'),
           description: errorMessage,
