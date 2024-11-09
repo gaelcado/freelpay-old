@@ -14,6 +14,8 @@ import { FcGoogle } from 'react-icons/fc'
 import { AuthError } from '@supabase/supabase-js'
 import HCaptcha from '@hcaptcha/react-hcaptcha'
 import { useTranslation } from '@/hooks/useTranslation'
+import { validateSiren, CompanyInfo } from '@/lib/sirenApi'
+import { getStatusText, getStaffCategory } from '@/lib/utils/companyUtils'
 
 console.log('Environment variables:', {
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
@@ -25,8 +27,8 @@ console.log('Environment variables:', {
 interface SignUpFormProps {
   username: string;
   setUsername: (value: string) => void;
-  siretNumber: string;
-  setSiretNumber: (value: string) => void;
+  sirenNumber: string;
+  setSirenNumber: (value: string) => void;
   phone: string;
   setPhone: (value: string) => void;
   address: string;
@@ -38,8 +40,8 @@ interface SignUpFormProps {
 const SignUpForm = ({
   username,
   setUsername,
-  siretNumber,
-  setSiretNumber,
+  sirenNumber,
+  setSirenNumber,
   phone,
   setPhone,
   address,
@@ -47,22 +49,126 @@ const SignUpForm = ({
   captcha,
   setCaptchaToken
 }: SignUpFormProps) => {
-  const { t } = useTranslation()
-  
+  const { t } = useTranslation();
+  const [isValidating, setIsValidating] = useState(false);
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+  const { toast } = useToast();
+
+  const validateSirenNumber = async () => {
+    if (sirenNumber.length !== 9) {
+      toast({
+        title: t('common.error'),
+        description: t('common.sirenValidation.incorrectFormat'),
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsValidating(true);
+    try {
+      const company = await validateSiren(sirenNumber, t);
+      setCompanyInfo(company);
+      setAddress(company.address);
+      
+      toast({
+        title: t('common.sirenValidation.companyFound'),
+        description: (
+          <div className="mt-2 space-y-2">
+            <p className="font-semibold text-lg">{company.name}</p>
+            <p><strong>{t('common.sirenValidation.companyDetails.siren')} :</strong> {company.siren}</p>
+            {company.address && (
+              <p><strong>{t('common.sirenValidation.companyDetails.address')} :</strong> {company.address}</p>
+            )}
+            {company.activity && (
+              <p><strong>{t('common.sirenValidation.companyDetails.mainActivity')} :</strong> {company.activity}</p>
+            )}
+            {company.creation_date && (
+              <p><strong>{t('common.sirenValidation.companyDetails.creationDate')} :</strong> {new Date(company.creation_date).toLocaleDateString()}</p>
+            )}
+            {company.status && (
+              <p><strong>{t('common.sirenValidation.companyDetails.status')} :</strong> {getStatusText(company.status, t)}</p>
+            )}
+            {company.staff_category && (
+              <p><strong>{t('common.sirenValidation.companyDetails.staffing')} :</strong> {getStaffCategory(company.staff_category)}
+                {company.staff_year && ` (${company.staff_year})`}
+              </p>
+            )}
+            {company.company_category && (
+              <p><strong>{t('common.sirenValidation.companyDetails.category')} :</strong> {company.company_category}</p>
+            )}
+            {company.social_economy === 'O' && (
+              <p><strong>{t('common.sirenValidation.companyDetails.socialEconomy')} :</strong> {t('common.sirenValidation.companyDetails.yes')}</p>
+            )}
+            {company.employer === 'O' && (
+              <p><strong>{t('common.sirenValidation.companyDetails.employer')} :</strong> {t('common.sirenValidation.companyDetails.yes')}</p>
+            )}
+          </div>
+        ),
+        duration: 10000,
+      });
+    } catch (error: any) {
+      toast({
+        title: t('common.error'),
+        description: error.message,
+        variant: "destructive"
+      });
+      setCompanyInfo(null);
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Input
         placeholder={t('common.username')}
         value={username}
         onChange={(e) => setUsername(e.target.value)}
-        required
       />
-      <Input
-        placeholder={t('common.siretNumber')}
-        value={siretNumber}
-        onChange={(e) => setSiretNumber(e.target.value)}
-        required
-      />
+      <div className="flex gap-2">
+        <Input
+          placeholder={t('common.sirenNumber')}
+          value={sirenNumber}
+          onChange={(e) => setSirenNumber(e.target.value.replace(/[^0-9]/g, '').slice(0, 9))}
+          maxLength={9}
+        />
+        <Button 
+          type="button"
+          onClick={validateSirenNumber}
+          disabled={isValidating || sirenNumber.length !== 9}
+        >
+          {isValidating ? t('common.sirenValidation.checking') : t('common.verify')}
+        </Button>
+      </div>
+      {companyInfo && (
+        <div className="p-4 bg-secondary rounded-md">
+          <p className="font-semibold text-lg">{companyInfo.name}</p>
+          <div className="space-y-1 text-sm">
+            <p><strong>SIREN :</strong> {companyInfo.siren}</p>
+            {companyInfo.status && (
+              <p><strong>{t('common.sirenValidation.companyDetails.status')}:</strong> {getStatusText(companyInfo.status, t)}</p>
+            )}
+            {companyInfo.creation_date && (
+              <p><strong>{t('common.sirenValidation.companyDetails.creationDate')}:</strong> {new Date(companyInfo.creation_date).toLocaleDateString()}</p>
+            )}
+            {companyInfo.company_category && (
+              <p><strong>{t('common.sirenValidation.companyDetails.category')}:</strong> {companyInfo.company_category}</p>
+            )}
+            {companyInfo.activity && (
+              <p><strong>{t('common.sirenValidation.companyDetails.mainActivity')}:</strong> {companyInfo.activity}</p>
+            )}
+            {companyInfo.address && (
+              <p><strong>{t('common.sirenValidation.companyDetails.address')}:</strong> {companyInfo.address}</p>
+            )}
+            {companyInfo.staff_category && (
+              <p>
+                <strong>{t('common.sirenValidation.companyDetails.staffing')}:</strong> {getStaffCategory(companyInfo.staff_category)}
+                {companyInfo.staff_year && ` (${companyInfo.staff_year})`}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
       <Input
         placeholder={t('common.phone')}
         value={phone}
@@ -154,7 +260,7 @@ export default function Home() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
-  const [siretNumber, setSiretNumber] = useState('')
+  const [sirenNumber, setSirenNumber] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const { toast } = useToast()
@@ -193,7 +299,7 @@ export default function Home() {
         console.log(t('auth.attemptingSignup'))
         const { user } = await signUpWithEmail(email, password, {
           username,
-          siret_number: siretNumber,
+          siren_number: sirenNumber,
           phone,
           address
         }, captchaToken)
@@ -230,7 +336,7 @@ export default function Home() {
     if (!isLogin) {
       // Réinitialiser les champs du formulaire d'inscription
       setUsername('')
-      setSiretNumber('')
+      setSirenNumber('')
       setPhone('')
       setAddress('')
     }
@@ -263,8 +369,8 @@ export default function Home() {
                 <SignUpForm
                   username={username}
                   setUsername={setUsername}
-                  siretNumber={siretNumber}
-                  setSiretNumber={setSiretNumber}
+                  sirenNumber={sirenNumber}
+                  setSirenNumber={setSirenNumber}
                   phone={phone}
                   setPhone={setPhone}
                   address={address}

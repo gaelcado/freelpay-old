@@ -4,7 +4,7 @@ import { AuthError } from '@supabase/supabase-js'
 
 interface UserMetadata {
   username: string
-  siret_number: string
+  siren_number: string
   phone: string
   address: string
 }

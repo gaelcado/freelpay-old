@@ -10,14 +10,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import api from '@/lib/api'
 import { useAuth } from '@/components/AuthContext' // Import the Auth context
-import { useTranslation } from '@/hooks/useTranslation' // Ajouter le hook de traduction
+import { useTranslation, TranslationKey } from '@/hooks/useTranslation' // Ajouter le hook de traduction
+import { validateSiren, CompanyInfo } from '@/lib/sirenApi'
+import { getStatusText, getStaffCategory } from '@/lib/utils/companyUtils'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://freelpay.com'
 console.log('API_URL', API_URL)
 
 interface OriginalData {
   email: string;
-  siret_number: string;
+  siren_number: string;
   phone: string;
   address: string;
   id_document?: string; 
@@ -27,13 +29,13 @@ interface OriginalData {
 export default function Profile() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [siret, setSiret] = useState('')
+  const [siren, setSiren] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const [hasChanges, setHasChanges] = useState(false)
   const [originalData, setOriginalData] = useState<OriginalData>({
     email: '',
-    siret_number: '',
+    siren_number: '',
     phone: '',
     address: '',
     id_document: undefined,
@@ -41,8 +43,11 @@ export default function Profile() {
   });
   const [idDocument, setIdDocument] = useState<string | null>(null); // State for ID document
   const [idDocumentStatus, setIdDocumentStatus] = useState('not_uploaded'); // State for ID document status
+  const [registrationMethod, setRegistrationMethod] = useState<'email' | 'google' | null>(null);
+  const [sirenLocked, setSirenLocked] = useState(false);
   const { toast } = useToast()
   const { t } = useTranslation() // Ajouter le hook de traduction
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
 
   useEffect(() => {
     fetchUserProfile();
@@ -56,15 +61,19 @@ export default function Profile() {
       // Populate fields based on user data
       setName(userData.username || ''); // Set name if available
       setEmail(userData.email || ''); // Always set email
-      setSiret(userData.siret_number || ''); // Set SIRET if available
+      setSiren(userData.siren_number || ''); // Set SIREN if available
       setPhone(userData.phone || ''); // Set phone if available
       setAddress(userData.address || ''); // Set address if available
       setIdDocument(userData.id_document || null);
       setIdDocumentStatus(userData.id_document_status || 'not_uploaded'); // Set ID document status
 
+      // Déterminer la méthode d'inscription et si le SIREN est verrouillé
+      setRegistrationMethod(userData.registration_method || 'email');
+      setSirenLocked(userData.registration_method === 'email' || userData.siren_number);
+
       setOriginalData({
         email: userData.email,
-        siret_number: userData.siret_number || '',
+        siren_number: userData.siren_number || '',
         phone: userData.phone || '',
         address: userData.address || '',
         id_document: userData.id_document || null,
@@ -84,7 +93,7 @@ export default function Profile() {
     const originalDataTyped = originalData as OriginalData;
     const hasChanged = 
       email !== originalDataTyped.email ||
-      siret !== originalDataTyped.siret_number ||
+      siren !== originalDataTyped.siren_number ||
       phone !== originalDataTyped.phone ||
       address !== originalDataTyped.address ||
       idDocument !== originalDataTyped.id_document; // Check for changes in id_document
@@ -96,7 +105,7 @@ export default function Profile() {
     try {
       await api.put('/users/update', {
         email,
-        siret_number: siret,
+        siren_number: siren,
         phone,
         address
       })
@@ -105,7 +114,7 @@ export default function Profile() {
         description: t('profile.updateSuccess'),
       })
       setHasChanges(false)
-      setOriginalData({ email, siret_number: siret, phone, address })
+      setOriginalData({ email, siren_number: siren, phone, address })
     } catch (error) {
       console.error('Error updating profile:', error)
       toast({
@@ -145,6 +154,65 @@ export default function Profile() {
     }
   }
 
+  const handleSirenValidation = async () => {
+    if (siren.length !== 9) {
+      toast({
+        title: t('common.error'),
+        description: t('common.sirenValidation.incorrectFormat'),
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const company = await validateSiren(siren, t);
+      setCompanyInfo(company);
+      setAddress(company.address);
+      
+      toast({
+        title: t('common.sirenValidation.companyFound'),
+        description: (
+          <div className="mt-2 space-y-2">
+            <p className="font-semibold text-lg">{company.name}</p>
+            <p><strong>{t('common.sirenValidation.companyDetails.siren')} :</strong> {company.siren}</p>
+            <p><strong>{t('common.sirenValidation.companyDetails.address')} :</strong> {company.address}</p>
+            {company.activity && (
+              <p><strong>{t('common.sirenValidation.companyDetails.mainActivity')} :</strong> {company.activity}</p>
+            )}
+            {company.creation_date && (
+              <p><strong>{t('common.sirenValidation.companyDetails.creationDate')} :</strong> {new Date(company.creation_date).toLocaleDateString()}</p>
+            )}
+            {company.status && (
+              <p><strong>{t('common.sirenValidation.companyDetails.status')} :</strong> {getStatusText(company.status, t)}</p>
+            )}
+            {company.staff_category && (
+              <p><strong>{t('common.sirenValidation.companyDetails.staffing')} :</strong> {getStaffCategory(company.staff_category)}
+                {company.staff_year && ` (${company.staff_year})`}
+              </p>
+            )}
+            {company.company_category && (
+              <p><strong>{t('common.sirenValidation.companyDetails.category')} :</strong> {company.company_category}</p>
+            )}
+            {company.social_economy && (
+              <p><strong>{t('common.sirenValidation.companyDetails.socialEconomy')} :</strong> {company.social_economy === 'O' ? t('common.sirenValidation.companyDetails.yes') : t('common.sirenValidation.companyDetails.no')}</p>
+            )}
+            {company.employer && (
+              <p><strong>{t('common.sirenValidation.companyDetails.employer')} :</strong> {company.employer === 'O' ? t('common.sirenValidation.companyDetails.yes') : t('common.sirenValidation.companyDetails.no')}</p>
+            )}
+          </div>
+        ),
+        duration: 10000,
+      });
+    } catch (error: any) {
+      toast({
+        title: t('common.error'),
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+    checkForChanges();
+  };
+
   return (
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
@@ -174,12 +242,58 @@ export default function Profile() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="siret">{t('common.siretNumber')}</Label>
-              <Input
-                id="siret"
-                value={siret}
-                onChange={(e) => handleInputChange(setSiret, e.target.value)}
-              />
+              <Label htmlFor="siren">{t('common.sirenNumber')}</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="siren"
+                  value={siren}
+                  onChange={(e) => setSiren(e.target.value.replace(/[^0-9]/g, '').slice(0, 9))}
+                  disabled={sirenLocked}
+                  maxLength={9}
+                />
+                <Button 
+                  type="button"
+                  onClick={handleSirenValidation}
+                  disabled={siren.length !== 9 || sirenLocked}
+                >
+                  {t('common.verify')}
+                </Button>
+              </div>
+              {sirenLocked && (
+                <p className="text-sm text-muted-foreground">
+                  {t('profile.sirenLocked')}
+                </p>
+              )}
+              
+              {companyInfo && (
+                <div className="mt-4 p-4 bg-muted rounded-lg space-y-2">
+                  <h3 className="font-semibold text-lg">{companyInfo.name}</h3>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <p><strong>{t('common.sirenValidation.companyDetails.siren')}:</strong> {companyInfo.siren}</p>
+                    {companyInfo.status && (
+                      <p><strong>{t('common.sirenValidation.companyDetails.status')}:</strong> {getStatusText(companyInfo.status, t)}</p>
+                    )}
+                    {companyInfo.creation_date && (
+                      <p><strong>{t('common.sirenValidation.companyDetails.creationDate')}:</strong> {new Date(companyInfo.creation_date).toLocaleDateString()}</p>
+                    )}
+                    {companyInfo.company_category && (
+                      <p><strong>{t('common.sirenValidation.companyDetails.category')}:</strong> {companyInfo.company_category}</p>
+                    )}
+                    {companyInfo.activity && (
+                      <p className="col-span-2"><strong>{t('common.sirenValidation.companyDetails.mainActivity')}:</strong> {companyInfo.activity}</p>
+                    )}
+                    {companyInfo.address && (
+                      <p className="col-span-2"><strong>{t('common.sirenValidation.companyDetails.address')}:</strong> {companyInfo.address}</p>
+                    )}
+                    {companyInfo.staff_category && (
+                      <p className="col-span-2">
+                        <strong>{t('common.sirenValidation.companyDetails.staffing')}:</strong> {getStaffCategory(companyInfo.staff_category)}
+                        {companyInfo.staff_year && ` (${companyInfo.staff_year})`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">{t('common.phone')}</Label>

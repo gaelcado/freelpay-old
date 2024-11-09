@@ -5,7 +5,7 @@ class UserCreate(BaseModel):
     id: str
     username: Annotated[str, Field(min_length=3, max_length=50)]
     email: EmailStr
-    siret_number: Optional[str] = None
+    siren_number: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
 
@@ -13,7 +13,7 @@ class UserInDB(BaseModel):
     username: str
     email: EmailStr
     password: str
-    siret_number: Optional[str] = None
+    siren_number: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
     id_document: Optional[str] = None
@@ -23,12 +23,12 @@ class User(BaseModel):
     id: str
     username: str
     email: str
-    siret_number: Optional[str] = None
+    siren_number: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
-    siret_number: Optional[str] = None
+    siren_number: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None

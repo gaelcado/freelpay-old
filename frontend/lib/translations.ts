@@ -22,7 +22,7 @@ export const translations = {
       confirmPassword: 'Confirm Password',
       updatePassword: 'Update Password',
       username: 'Username',
-      siretNumber: 'SIRET Number',
+      sirenNumber: 'SIREN Number',
       phone: 'Phone',
       address: 'Address',
       error: 'Error',
@@ -31,6 +31,33 @@ export const translations = {
       pickDate: 'Pick a date',
       searchPlaceholder: 'Search by client or invoice number',
       all: 'All',
+      sirenValidation: {
+        checking: 'Checking SIREN number...',
+        companyFound: 'Company found',
+        invalidSiren: 'Invalid SIREN number',
+        incorrectFormat: 'Incorrect SIREN format',
+        verificationError: 'Error verifying SIREN',
+        companyDetails: {
+          name: 'Company Name',
+          siren: 'SIREN',
+          address: 'Address',
+          mainActivity: 'Main Activity',
+          creationDate: 'Creation Date',
+          status: 'Status',
+          staffing: 'Staffing',
+          category: 'Category',
+          socialEconomy: 'Social and Solidarity Economy',
+          employer: 'Employer',
+          yes: 'Yes',
+          no: 'No',
+          statuses: {
+            active: 'Active',
+            ceased: 'Ceased',
+            unknown: 'Unknown'
+          }
+        }
+      },
+      verify: 'Verify',
     },
     auth: {
       forgotPassword: 'Forgot Password?',
@@ -72,7 +99,8 @@ export const translations = {
       verified: 'Verified',
       pendingValidation: 'Pending Validation',
       notVerified: 'Not Verified',
-      updateProfile: 'Update Profile'
+      updateProfile: 'Update Profile',
+      sirenLocked: 'The SIREN number cannot be modified once set'
     },
     dashboard: {
       title: 'Dashboard',
@@ -145,7 +173,7 @@ export const translations = {
       confirmPassword: 'Confirmer le mot de passe',
       updatePassword: 'Mettre à jour le mot de passe',
       username: 'Nom d\'utilisateur',
-      siretNumber: 'Numéro SIRET',
+      sirenNumber: 'Numéro SIREN',
       phone: 'Téléphone',
       address: 'Adresse',
       error: 'Erreur',
@@ -154,6 +182,33 @@ export const translations = {
       pickDate: 'Choisir une date',
       searchPlaceholder: 'Rechercher par client ou numéro de facture',
       all: 'Tout',
+      sirenValidation: {
+        checking: 'Vérification du numéro SIREN...',
+        companyFound: 'Entreprise trouvée',
+        invalidSiren: 'Numéro SIREN invalide',
+        incorrectFormat: 'Format de SIREN incorrect',
+        verificationError: 'Erreur lors de la vérification du SIREN',
+        companyDetails: {
+          name: 'Nom de l\'entreprise',
+          siren: 'SIREN',
+          address: 'Adresse',
+          mainActivity: 'Activité principale',
+          creationDate: 'Date de création',
+          status: 'Statut',
+          staffing: 'Effectifs',
+          category: 'Catégorie',
+          socialEconomy: 'Économie sociale et solidaire',
+          employer: 'Employeur',
+          yes: 'Oui',
+          no: 'Non',
+          statuses: {
+            active: 'Active',
+            ceased: 'Cessée',
+            unknown: 'Inconnu'
+          }
+        }
+      },
+      verify: 'Vérifier',
     },
     auth: {
       forgotPassword: 'Mot de passe oublié ?',
@@ -195,7 +250,8 @@ export const translations = {
       verified: 'Vérifié',
       pendingValidation: 'En attente de validation',
       notVerified: 'Non vérifié',
-      updateProfile: 'Mettre à jour le profil'
+      updateProfile: 'Mettre à jour le profil',
+      sirenLocked: 'Le numéro SIREN ne peut plus être modifié une fois défini'
     },
     dashboard: {
       title: 'Tableau de bord',

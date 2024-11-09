@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import auth, user, invoice
+from routers import auth, user, invoice, siren
 from dotenv import load_dotenv
 import logging
 
@@ -45,6 +45,7 @@ app.max_request_size = 10 * 1024 * 1024  # 10 Mo en octets
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(user.router, prefix="/users", tags=["users"])
 app.include_router(invoice.router, prefix="/invoices", tags=["invoices"])
+app.include_router(siren.router, prefix="/api/siren", tags=["siren"])
 
 if __name__ == "__main__":
     import uvicorn
