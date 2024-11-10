@@ -24,7 +24,7 @@ type Invoice = {
   created_date: string
   amount: number
   client: string
-  status: 'Sent' | 'Accepted' | 'Financed' | 'Ongoing'
+  status: 'Sent' | 'Signed' | 'Freelpaid' | 'Draft'
   financing_date?: string
   possible_financing?: number
   invoice_number: string
@@ -119,8 +119,8 @@ export default function Dashboard() {
   const getStatusColor = (status: string | null) => {
     switch (status) {
       case 'Sent': return 'bg-blue-500 hover:bg-blue-600'
-      case 'Accepted': return 'bg-green-500 hover:bg-green-600'
-      case 'Financed': return 'bg-purple-500 hover:bg-purple-600'
+      case 'Signed': return 'bg-green-500 hover:bg-green-600'
+      case 'Freelpaid': return 'bg-purple-500 hover:bg-purple-600'
       default: return 'bg-gray-500 hover:bg-gray-600'
     }
   }
@@ -150,8 +150,8 @@ export default function Dashboard() {
               <SelectContent>
                 <SelectItem value="all">{t('common.all')}</SelectItem>
                 <SelectItem value="Sent">Sent</SelectItem>
-                <SelectItem value="Accepted">Accepted</SelectItem>
-                <SelectItem value="Financed">Financed</SelectItem>
+                <SelectItem value="Signed">Signed</SelectItem>
+                <SelectItem value="Freelpaid">Freelpaid</SelectItem>
                 <SelectItem value="Ongoing">Ongoing</SelectItem>
               </SelectContent>
             </Select>
@@ -191,13 +191,13 @@ export default function Dashboard() {
                     : '-'}
                 </TableCell>
                 <TableCell>
-                  {invoice.status === 'Ongoing' && (
+                  {invoice.status === 'Draft' && (
                     <div className="space-x-2">
                       <Button size="sm" onClick={() => handleSend(invoice.id)}>{t('dashboard.send')}</Button>
                       <Button size="sm" variant="outline" onClick={() => handleView(invoice.id)}>{t('dashboard.view')}</Button>
                     </div>
                   )}
-                  {(invoice.status === 'Sent' || invoice.status === 'Accepted' || invoice.status === 'Financed') && (
+                  {(invoice.status === 'Sent' || invoice.status === 'Signed' || invoice.status === 'Freelpaid') && (
                     <Button size="sm" variant="outline" onClick={() => handleView(invoice.id)}>{t('dashboard.view')}</Button>
                   )}
                 </TableCell>
