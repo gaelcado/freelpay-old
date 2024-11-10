@@ -124,9 +124,9 @@ export const translations = {
     },
     createInvoice: {
       title: 'Create Quote',
-      description: 'Create a new quote',
+      description: 'Add a description',
       createManually: 'Create Manually',
-      uploadInvoice: 'Upload Quote orInvoice',
+      uploadInvoice: 'Upload Quote or Invoice',
       invoiceNumber: 'Quote Number',
       clientName: 'Client Name',
       amount: 'Amount',
@@ -148,6 +148,7 @@ export const translations = {
       uploadSuccessTitle: 'Document Uploaded',
       uploadSuccessDescription: 'Your document has been successfully uploaded and processed.',
       uploadErrorDescription: 'Failed to upload your document. Please try again.',
+      scoreMyQuote: 'Score my quote',
     }
   },
   fr: {
@@ -275,7 +276,7 @@ export const translations = {
     },
     createInvoice: {
       title: 'Créer un devis',
-      description: 'Créer un nouveau devis',
+      description: ' Ajouter une description',
       createManually: 'Créer manuellement',
       uploadInvoice: 'Télécharger devis ou facture',
       invoiceNumber: 'Numéro de devis',
@@ -299,6 +300,7 @@ export const translations = {
       uploadSuccessTitle: 'Document téléchargé',
       uploadSuccessDescription: 'Votre document a été téléchargé et traité avec succès.',
       uploadErrorDescription: 'Échec du téléchargement du document. Veuillez réessayer.',
+      scoreMyQuote: 'Noter mon devis',
     }
   }
 } 

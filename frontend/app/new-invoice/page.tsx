@@ -105,13 +105,28 @@ export default function NewInvoice() {
     }
   }
 
-  const handleScoreInvoice = () => {
+  const handleScoreInvoice = async () => {
     if (!createdInvoice) return;
 
-    // Directly use the score from the createdInvoice
-    setScore(createdInvoice.score); // Set the score from the created invoice
-    setShowScoreDialog(true); // Show the score dialog
-    setShowConfetti(true); // Show confetti animation
+    setIsScoring(true);
+    try {
+      // Create Pennylane estimate
+      await api.post(`/invoices/${createdInvoice.id}/create-pennylane-estimate`);
+      
+      // Show score dialog
+      setScore(createdInvoice.score);
+      setShowScoreDialog(true);
+      setShowConfetti(true);
+    } catch (error) {
+      console.error('Error creating Pennylane estimate:', error);
+      toast({
+        title: t('common.error'),
+        description: 'Error creating estimate in Pennylane',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsScoring(false);
+    }
   };
 
   return (
@@ -207,7 +222,7 @@ export default function NewInvoice() {
               className="mt-4 w-full"
               disabled={isScoring}
             >
-              {isScoring ? 'Scoring...' : 'Score my quote'}
+              {isScoring ? t('createInvoice.scoring') : t('createInvoice.scoreMyQuote')}
             </Button>
           </div>
         )}

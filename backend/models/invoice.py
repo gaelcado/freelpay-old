@@ -16,6 +16,10 @@ class InvoiceCreate(InvoiceBase):
     amount: float = Field(gt=0)
     due_date: datetime
     description: Optional[str] = None
+    client_address: Optional[str] = None
+    client_postal_code: Optional[str] = None
+    client_city: Optional[str] = None
+    client_country: Optional[str] = "FR"
 
 class InvoiceInDB(InvoiceBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -30,6 +34,7 @@ class InvoiceInDB(InvoiceBase):
     financing_date: Optional[datetime] = None
     possible_financing: Optional[float] = None
     score: Optional[float] = None
+    pennylane_id: Optional[str] = None
 
 class Invoice(InvoiceBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))

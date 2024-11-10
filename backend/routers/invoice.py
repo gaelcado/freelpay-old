@@ -4,8 +4,9 @@ from models.user import User
 from models.invoice import InvoiceCreate, Invoice, InvoiceInDB
 from services.ocr_service import process_invoice
 from services.scoring_service import calculate_score
+from services.pennylane import create_pennylane_estimate
 from dependencies import get_current_user
-from database.db import create_invoice, get_user_invoices, update_invoice_status
+from database.db import create_invoice, get_user_invoices, update_invoice_status, get_invoice_by_id, update_invoice_pennylane_id
 from datetime import datetime
 import logging
 
@@ -131,3 +132,38 @@ async def upload_demo_invoice(file: UploadFile = File(...)):
     )
     
     return invoice
+
+@router.post("/{invoice_id}/create-pennylane-estimate")
+async def create_pennylane_estimate_endpoint(
+    invoice_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    try:
+        # Get invoice data from database
+        invoice = await get_invoice_by_id(invoice_id)
+        if not invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        
+        logging.info(f"Retrieved invoice: {invoice}")
+            
+        # Convert dates to string format for Pennylane
+        invoice['due_date'] = invoice['due_date'].split('T')[0]  # Get only the date part
+            
+        # Create estimate in Pennylane
+        pennylane_response = await create_pennylane_estimate(invoice)
+        
+        estimate_id = pennylane_response.get('estimate', {}).get('id')
+        if not estimate_id:
+            raise HTTPException(status_code=500, detail="No estimate ID in response")
+            
+        await update_invoice_pennylane_id(invoice_id, estimate_id)
+        
+        return {
+            "message": "Pennylane estimate created successfully",
+            "estimate_id": estimate_id
+        }
+        
+    except Exception as e:
+        logging.error(f"Error creating Pennylane estimate: {str(e)}")
+        raise HTTPException(status_code=500, 
+                          detail=f"Error creating Pennylane estimate: {str(e)}")
