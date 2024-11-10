@@ -9,6 +9,11 @@ from dependencies import get_current_user
 from database.db import create_invoice, get_user_invoices, update_invoice_status, get_invoice_by_id, update_invoice_pennylane_id
 from datetime import datetime
 import logging
+import requests
+import os
+
+PENNYLANE_API_KEY = os.getenv('PENNYLANE_API_KEY')
+PENNYLANE_API_URL = "https://app.pennylane.com/api/external/v1"
 
 router = APIRouter()
 
@@ -167,3 +172,34 @@ async def create_pennylane_estimate_endpoint(
         logging.error(f"Error creating Pennylane estimate: {str(e)}")
         raise HTTPException(status_code=500, 
                           detail=f"Error creating Pennylane estimate: {str(e)}")
+
+@router.get("/{invoice_id}/pdf-url")
+async def get_invoice_pdf_url(
+    invoice_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    try:
+        invoice = await get_invoice_by_id(invoice_id)
+        if not invoice or not invoice.get('pennylane_id'):
+            raise HTTPException(status_code=404, detail="Invoice or Pennylane ID not found")
+            
+        headers = {
+            'Accept': 'application/json',
+            'Authorization': f'Bearer {PENNYLANE_API_KEY}'
+        }
+        
+        response = requests.get(
+            f"{PENNYLANE_API_URL}/customer_estimates/{invoice['pennylane_id']}",
+            headers=headers
+        )
+        
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, 
+                              detail="Error fetching Pennylane estimate")
+                              
+        estimate_data = response.json()
+        return {"pdf_url": estimate_data['estimate']['file_url']}
+        
+    except Exception as e:
+        logging.error(f"Error getting PDF URL: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

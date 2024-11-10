@@ -41,6 +41,8 @@ export default function Dashboard() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [showSendDialog, setShowSendDialog] = useState(false) // State for dialog visibility
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null) // State to hold the selected invoice ID
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [showPdfDialog, setShowPdfDialog] = useState(false);
   const { t } = useTranslation()
   const { toast } = useToast()
 
@@ -112,9 +114,20 @@ export default function Dashboard() {
     }
   }
 
-  const handleView = (invoiceId: string) => {
-    console.log('Viewing invoice:', invoiceId)
-  }
+  const handleView = async (invoiceId: string) => {
+    try {
+      const response = await api.get(`/invoices/${invoiceId}/pdf-url`);
+      setPdfUrl(response.data.pdf_url);
+      setShowPdfDialog(true);
+    } catch (error) {
+      console.error('Error fetching PDF URL:', error);
+      toast({
+        title: t('common.error'),
+        description: t('dashboard.errorFetchingPdf'),
+        variant: 'destructive',
+      });
+    }
+  };
 
   const getStatusColor = (status: string | null) => {
     switch (status) {
@@ -218,6 +231,17 @@ export default function Dashboard() {
             <Button variant="outline" onClick={() => setShowSendDialog(false)}>{t('dashboard.cancel')}</Button>
             <Button onClick={confirmSendInvoice}>{t('dashboard.send')}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
+        <DialogContent className="max-w-4xl h-[80vh]">
+          {pdfUrl && (
+            <iframe 
+              src={pdfUrl} 
+              className="w-full h-full"
+              title="Invoice PDF"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </Card>
