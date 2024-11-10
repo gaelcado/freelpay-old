@@ -26,7 +26,7 @@ class InvoiceInDB(InvoiceBase):
     due_date: datetime
     description: Optional[str] = None
     created_date: datetime = Field(default_factory=datetime.now)
-    status: str = "Ongoing"
+    status: str = "Draft"
     financing_date: Optional[datetime] = None
     possible_financing: Optional[float] = None
     score: Optional[float] = None

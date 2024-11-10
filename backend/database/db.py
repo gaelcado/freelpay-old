@@ -28,7 +28,7 @@ async def find_user_by_id(user_id: str):
     response = supabase.table('users').select('*').eq('id', user_id).execute()
     return response.data[0] if response.data else None
 
-async def insert_user(username: str, email: str, password: str, siret_number: str = None, 
+async def insert_user(username: str, email: str, password: str, siren_number: str = None, 
                      phone: str = None, address: str = None, is_admin: bool = False):
     try:
         user_data = {
@@ -36,7 +36,7 @@ async def insert_user(username: str, email: str, password: str, siret_number: st
             'username': username,
             'email': email,
             'password': password,
-            'siret_number': siret_number,
+            'siren_number': siren_number,
             'phone': phone,
             'address': address,
             'is_admin': is_admin,

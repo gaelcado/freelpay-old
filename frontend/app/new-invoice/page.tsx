@@ -207,7 +207,7 @@ export default function NewInvoice() {
               className="mt-4 w-full"
               disabled={isScoring}
             >
-              {isScoring ? 'Scoring...' : 'Score my invoice'}
+              {isScoring ? 'Scoring...' : 'Score my quote'}
             </Button>
           </div>
         )}
@@ -218,8 +218,8 @@ export default function NewInvoice() {
             <DialogTitle>Congratulations!</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p>Your invoice has a score of <strong>{createdInvoice?.score?.toFixed(2) ?? 'N/A'}</strong></p>
-            <p className="mt-2">We are able to pay you an amount of <strong>${createdInvoice?.possible_financing?.toFixed(2) ?? 'N/A'}</strong> for this invoice.</p>
+            <p>Your quote has a score of <strong>{createdInvoice?.score?.toFixed(2) ?? 'N/A'}</strong></p>
+            <p className="mt-2">We are able to pay you an amount of <strong>${createdInvoice?.possible_financing?.toFixed(2) ?? 'N/A'}</strong> for this quote.</p>
           </div>
           <Button onClick={() => {
             setShowScoreDialog(false)

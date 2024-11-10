@@ -22,7 +22,7 @@ async def create_user_record(user: UserCreate):
             'id': user.id,
             'username': user.username,
             'email': user.email,
-            'siret_number': user.siret_number,
+            'siren_number': user.siren_number,
             'phone': user.phone,
             'address': user.address,
             'id_document_status': 'not_uploaded'
