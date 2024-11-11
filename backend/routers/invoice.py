@@ -5,6 +5,7 @@ from models.invoice import InvoiceCreate, Invoice, InvoiceInDB
 from services.ocr_service import process_invoice
 from services.scoring_service import calculate_score
 from services.pennylane import create_pennylane_estimate, send_estimate_for_signature
+from services.pandadoc import send_document_for_signature
 from dependencies import get_current_user
 from database.db import create_invoice, get_user_invoices, update_invoice_status, get_invoice_by_id, update_invoice_pennylane_id
 from datetime import datetime
@@ -97,20 +98,19 @@ async def send_invoice_endpoint(
                 detail="Client email is required to send the quote"
             )
         
-        if not invoice.get('pennylane_id'):
-            raise HTTPException(
-                status_code=400,
-                detail="Invoice must be created in Pennylane first"
-            )
-            
-        # Send estimate for signature
-        await send_estimate_for_signature(
-            invoice['pennylane_id'],
-            invoice['client_email']
+        # Get PDF URL from Pennylane
+        pdf_response = await get_invoice_pdf_url(invoice_id, current_user)
+        pdf_url = pdf_response["pdf_url"]
+        
+        # Send for signature using PandaDoc
+        await send_document_for_signature(
+            file_url=pdf_url,
+            recipient_email=invoice['client_email'],
+            recipient_name=invoice['client']
         )
         
         # Update invoice status
-        updated_invoice = await update_invoice_status(
+        await update_invoice_status(
             invoice_id,
             current_user['id'],
             "Sent"
