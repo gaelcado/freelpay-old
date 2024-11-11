@@ -32,12 +32,13 @@ async def create_pennylane_estimate(invoice_data: dict):
             "address": invoice_data.get('client_address') or '9 allée des cavaliers',
             "postal_code": invoice_data.get('client_postal_code') or '94700',
             "city": invoice_data.get('client_city') or 'Maisons-Alfort',
-            "country_alpha2": "FR",
+            "country_alpha2": invoice_data.get('client_country') or "FR",
             "phone": invoice_data.get('client_phone') or '0640315803',
             "emails": [invoice_data.get('client_email') or 'illan_knafou@hotmail.fr'],
             "payment_conditions": invoice_data.get('payment_conditions') or 'upon_receipt',
             "vat_number": invoice_data.get('client_vat_number') or '',
-            "reg_no": ""
+            "reg_no": "",
+            "is_company": invoice_data.get('client_type') == 'company'
         }
 
         estimate_data = {
@@ -102,6 +103,11 @@ async def create_pennylane_estimate(invoice_data: dict):
         raise
 
 async def send_estimate_for_signature(estimate_id: str, recipient_email: str):
+    if not estimate_id:
+        raise HTTPException(status_code=400, detail="Estimate ID is required")
+    if not recipient_email:
+        raise HTTPException(status_code=400, detail="Recipient email is required")
+
     headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -114,11 +120,20 @@ async def send_estimate_for_signature(estimate_id: str, recipient_email: str):
     }
     
     try:
+        # Log pour déboguer
+        logging.info(f"Sending estimate {estimate_id} to {recipient_email}")
+        logging.info(f"Request data: {data}")
+        
         response = requests.post(
             f"{PENNYLANE_API_URL}/customer_estimates/{estimate_id}/send",
             headers=headers,
-            json=data
+            json=data,
+            timeout=10  # Ajout d'un timeout
         )
+        
+        # Log de la réponse
+        logging.info(f"Response status: {response.status_code}")
+        logging.info(f"Response body: {response.text}")
         
         if response.status_code != 200:
             logging.error(f"Pennylane API error: {response.text}")
@@ -128,6 +143,11 @@ async def send_estimate_for_signature(estimate_id: str, recipient_email: str):
             )
             
         return response.json()
+    except requests.exceptions.Timeout:
+        raise HTTPException(
+            status_code=504,
+            detail="Timeout while sending estimate for signature"
+        )
     except Exception as e:
         logging.error(f"Error sending estimate for signature: {str(e)}")
         raise HTTPException(

@@ -79,7 +79,7 @@ async def get_invoices(current_user: dict = Depends(get_current_user)):
     ]
 
 @router.post("/{invoice_id}/send")
-async def send_invoice(
+async def send_invoice_endpoint(
     invoice_id: str,
     current_user: User = Depends(get_current_user)
 ):
@@ -88,16 +88,19 @@ async def send_invoice(
         if not invoice:
             raise HTTPException(status_code=404, detail="Invoice not found")
             
+        logging.info(f"Invoice data: {invoice}")
+        logging.info(f"Client email: {invoice.get('client_email')}")
+        
+        if not invoice.get('client_email'):
+            raise HTTPException(
+                status_code=400,
+                detail="Client email is required to send the quote"
+            )
+        
         if not invoice.get('pennylane_id'):
             raise HTTPException(
                 status_code=400,
                 detail="Invoice must be created in Pennylane first"
-            )
-            
-        if not invoice.get('client_email'):
-            raise HTTPException(
-                status_code=400,
-                detail="Client email is required to send invoice"
             )
             
         # Send estimate for signature

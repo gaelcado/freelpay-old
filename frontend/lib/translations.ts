@@ -121,6 +121,7 @@ export const translations = {
       sendSuccess: 'Quote Sent',
       invoiceSentSuccessfully: 'Quote has been sent successfully',
       errorSendingInvoice: 'Error sending quote. Please try again.',
+      clientEmailRequired: "The client's email is required to send the quote",
     },
     createInvoice: {
       title: 'Create Quote',
@@ -291,6 +292,7 @@ export const translations = {
       sendSuccess: 'Devis envoyé',
       invoiceSentSuccessfully: 'Le devis a été envoyé avec succès',
       errorSendingInvoice: 'Erreur lors de l\'envoi du devis. Veuillez réessayer.',
+      clientEmailRequired: "L'email du client est requis pour envoyer le devis",
     },
     createInvoice: {
       title: 'Créer un devis',
