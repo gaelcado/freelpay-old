@@ -31,7 +31,7 @@ export default function Navbar() {
         { href: '/dashboard', label: t('common.myDashboard'), requireAuth: true },
       ]
     : [
-        { href: '/create-invoice', label: t('common.tryItNow'), requireAuth: false },
+        { href: '/new-invoice', label: t('common.tryItNow'), requireAuth: false },
       ];
 
   const filteredRoutes = routes.filter(route => !route.requireAuth || isAuthenticated)

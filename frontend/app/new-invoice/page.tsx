@@ -23,9 +23,21 @@ interface CreatedInvoice {
   id: string;
   invoice_number: string;
   client: string;
+  client_email?: string;
+  client_phone?: string;
+  client_address?: string;
+  client_postal_code?: string;
+  client_city?: string;
+  client_country?: string;
+  client_vat_number?: string;
+  client_type?: string;
   amount: number;
+  currency?: string;
   due_date: string;
   description: string;
+  payment_conditions?: string;
+  language?: string;
+  special_mentions?: string;
   possible_financing: number;
   status: string;
   created_date: string;
@@ -35,9 +47,21 @@ interface CreatedInvoice {
 export default function NewInvoice() {
   const [invoiceNumber, setInvoiceNumber] = useState('')
   const [clientName, setClientName] = useState('')
+  const [clientEmail, setClientEmail] = useState('')
+  const [clientPhone, setClientPhone] = useState('')
+  const [clientAddress, setClientAddress] = useState('')
+  const [clientPostalCode, setClientPostalCode] = useState('')
+  const [clientCity, setClientCity] = useState('')
+  const [clientCountry, setClientCountry] = useState('FR')
+  const [clientVatNumber, setClientVatNumber] = useState('')
+  const [clientType, setClientType] = useState('company')
   const [amount, setAmount] = useState('')
+  const [currency, setCurrency] = useState('EUR')
   const [dueDate, setDueDate] = useState('')
   const [description, setDescription] = useState('')
+  const [paymentConditions, setPaymentConditions] = useState('upon_receipt')
+  const [language, setLanguage] = useState('fr_FR')
+  const [specialMentions, setSpecialMentions] = useState('')
   const [createdInvoice, setCreatedInvoice] = useState<CreatedInvoice | null>(null)
   const [isScoring, setIsScoring] = useState(false)
   const [showScoreDialog, setShowScoreDialog] = useState(false)
@@ -50,13 +74,29 @@ export default function NewInvoice() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const response = await api.post('/invoices/create', {
+      const invoiceData = {
         invoice_number: invoiceNumber,
         client: clientName,
+        client_email: clientEmail,
+        client_phone: clientPhone,
+        client_address: clientAddress,
+        client_postal_code: clientPostalCode,
+        client_city: clientCity,
+        client_country: clientCountry,
+        client_vat_number: clientVatNumber,
+        client_type: clientType,
         amount: parseFloat(amount),
+        currency: currency,
         due_date: dueDate,
-        description
-      })
+        description: description,
+        payment_conditions: paymentConditions,
+        language: language,
+        special_mentions: specialMentions,
+        pdf_invoice_subject: `Devis ${invoiceNumber}`,
+        pdf_invoice_free_text: specialMentions
+      }
+
+      const response = await api.post('/invoices/create', invoiceData)
       setCreatedInvoice(response.data)
       toast({
         title: t('createInvoice.successTitle'),
@@ -110,18 +150,19 @@ export default function NewInvoice() {
 
     setIsScoring(true);
     try {
-      // Create Pennylane estimate
       await api.post(`/invoices/${createdInvoice.id}/create-pennylane-estimate`);
-      
-      // Show score dialog
       setScore(createdInvoice.score);
       setShowScoreDialog(true);
       setShowConfetti(true);
     } catch (error) {
       console.error('Error creating Pennylane estimate:', error);
+      const errorMessage = error instanceof AxiosError 
+        ? error.response?.data?.detail || error.message 
+        : t('createInvoice.pennylaneError');
+      
       toast({
         title: t('common.error'),
-        description: 'Error creating estimate in Pennylane',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -143,23 +184,87 @@ export default function NewInvoice() {
           <TabsContent value="manual">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="invoice-number">{t('createInvoice.invoiceNumber')}</Label>
+                <div>
+                  <Label htmlFor="invoiceNumber">{t('createInvoice.invoiceNumber')}</Label>
                   <Input
-                    id="invoice-number"
+                    id="invoiceNumber"
                     value={invoiceNumber}
                     onChange={(e) => setInvoiceNumber(e.target.value)}
+                    required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="client-name">{t('createInvoice.clientName')}</Label>
+                <div>
+                  <Label htmlFor="clientName">{t('createInvoice.clientName')}</Label>
                   <Input
-                    id="client-name"
+                    id="clientName"
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
+                    required
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="clientEmail">{t('createInvoice.clientEmail')}</Label>
+                  <Input
+                    id="clientEmail"
+                    type="email"
+                    value={clientEmail}
+                    onChange={(e) => setClientEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="clientPhone">{t('createInvoice.clientPhone')}</Label>
+                  <Input
+                    id="clientPhone"
+                    value={clientPhone}
+                    onChange={(e) => setClientPhone(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="clientAddress">{t('createInvoice.clientAddress')}</Label>
+                <Input
+                  id="clientAddress"
+                  value={clientAddress}
+                  onChange={(e) => setClientAddress(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="clientPostalCode">{t('createInvoice.clientPostalCode')}</Label>
+                  <Input
+                    id="clientPostalCode"
+                    value={clientPostalCode}
+                    onChange={(e) => setClientPostalCode(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="clientCity">{t('createInvoice.clientCity')}</Label>
+                  <Input
+                    id="clientCity"
+                    value={clientCity}
+                    onChange={(e) => setClientCity(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="clientType">{t('createInvoice.clientType')}</Label>
+                  <select
+                    id="clientType"
+                    value={clientType}
+                    onChange={(e) => setClientType(e.target.value)}
+                    className="w-full rounded-md border border-input px-3 py-2"
+                  >
+                    <option value="company">{t('createInvoice.companyType')}</option>
+                    <option value="individual">{t('createInvoice.individualType')}</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="amount">{t('createInvoice.amount')}</Label>
@@ -186,6 +291,28 @@ export default function NewInvoice() {
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="paymentConditions">{t('createInvoice.paymentConditions')}</Label>
+                <select
+                  id="paymentConditions"
+                  value={paymentConditions}
+                  onChange={(e) => setPaymentConditions(e.target.value)}
+                  className="w-full rounded-md border border-input px-3 py-2"
+                >
+                  <option value="upon_receipt">{t('createInvoice.paymentUponReceipt')}</option>
+                  <option value="30_days">{t('createInvoice.payment30Days')}</option>
+                  <option value="60_days">{t('createInvoice.payment60Days')}</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="specialMentions">{t('createInvoice.specialMentions')}</Label>
+                <Textarea
+                  id="specialMentions"
+                  value={specialMentions}
+                  onChange={(e) => setSpecialMentions(e.target.value)}
+                  className="h-20"
                 />
               </div>
               <Button type="submit" className="w-full">{t('createInvoice.createButton')}</Button>

@@ -4,70 +4,133 @@ from datetime import datetime
 from fastapi import HTTPException
 import logging
 from database.db import update_invoice_pennylane_id
+import uuid
 
 PENNYLANE_API_KEY = os.getenv('PENNYLANE_API_KEY')
 PENNYLANE_API_URL = "https://app.pennylane.com/api/external/v1"
 
 async def create_pennylane_estimate(invoice_data: dict):
+    try:
+        if not PENNYLANE_API_KEY:
+            raise HTTPException(
+                status_code=500,
+                detail="Pennylane API key is missing"
+            )
+
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {PENNYLANE_API_KEY}'
+        }
+
+        amount = float(invoice_data['amount'])
+        
+        # Construction d'un seul customer
+        customer = {
+            "source_id": str(uuid.uuid4()),
+            "name": invoice_data['client'],
+            "address": invoice_data.get('client_address') or '9 allée des cavaliers',
+            "postal_code": invoice_data.get('client_postal_code') or '94700',
+            "city": invoice_data.get('client_city') or 'Maisons-Alfort',
+            "country_alpha2": "FR",
+            "phone": invoice_data.get('client_phone') or '0640315803',
+            "emails": [invoice_data.get('client_email') or 'illan_knafou@hotmail.fr'],
+            "payment_conditions": invoice_data.get('payment_conditions') or 'upon_receipt',
+            "vat_number": invoice_data.get('client_vat_number') or '',
+            "reg_no": ""
+        }
+
+        estimate_data = {
+            "create_customer": True,
+            "create_products": True,
+            "update_customer": False,
+            "estimate": {
+                "customer": customer,
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "deadline": invoice_data['due_date'].split('T')[0] if isinstance(invoice_data['due_date'], str) else invoice_data['due_date'].strftime("%Y-%m-%d"),
+                "currency": "EUR",
+                "pdf_invoice_subject": "Devis",
+                "pdf_invoice_free_text": "",
+                "special_mention": invoice_data.get('special_mentions') or '',
+                "line_items": [
+                    {
+                        "currency_amount": amount,
+                        "unit": "piece",
+                        "vat_rate": "FR_200",
+                        "description": invoice_data.get('description') or '',
+                        "label": "Services",
+                        "quantity": 1
+                    }
+                ]
+            }
+        }
+
+        # Log de la requête
+        logging.info(f"Full request URL: {PENNYLANE_API_URL}/customer_estimates")
+        logging.info(f"Request headers: {headers}")
+        logging.info(f"Request body: {estimate_data}")
+
+        response = requests.post(
+            f"{PENNYLANE_API_URL}/customer_estimates",
+            headers=headers,
+            json=estimate_data,
+            timeout=10
+        )
+        
+        # Log de la réponse
+        logging.info(f"Response Status: {response.status_code}")
+        logging.info(f"Response Headers: {dict(response.headers)}")
+        logging.info(f"Response Body: {response.text}")
+
+        if response.status_code == 500:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Pennylane service error: {response.text}"
+            )
+            
+        if response.status_code not in (200, 201):
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Pennylane API error: {response.text}"
+            )
+
+        return response.json()
+        
+    except Exception as e:
+        logging.error(f"Detailed error in create_pennylane_estimate: {str(e)}")
+        logging.exception("Full traceback:")
+        raise
+
+async def send_estimate_for_signature(estimate_id: str, recipient_email: str):
     headers = {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {PENNYLANE_API_KEY}'
     }
-
-    logging.info(f"Creating Pennylane estimate with data: {invoice_data}")
-
-    estimate_data = {
-        "create_customer": True,
-        "update_customer": False,
-        "create_products": True,
-        "estimate": {
-            "date": datetime.now().strftime("%Y-%m-%d"),
-            "deadline": invoice_data['due_date'],
-            "external_id": str(invoice_data['id']),
-            "pdf_invoice_subject": f"Quote {invoice_data['invoice_number']}",
-            "draft": True,
-            "currency": "EUR",
-            "special_mention": invoice_data.get('description', ''),
-            "language": "fr_FR",
-            "customer": {
-                "customer_type": "company",
-                "name": invoice_data['client'],
-                "address": invoice_data.get('client_address', ''),
-                "postal_code": invoice_data.get('client_postal_code', ''),
-                "city": invoice_data.get('client_city', ''),
-                "country_alpha2": "FR"
-            },
-            "line_items": [
-                {
-                    "label": invoice_data.get('description', 'Professional Services'),
-                    "quantity": 1,
-                    "currency_amount": float(invoice_data['amount']),
-                    "unit": "service",
-                    "vat_rate": "FR_200"
-                }
-            ]
-        }
+    
+    data = {
+        "recipient_email": recipient_email,
+        "message": "Please review and sign this quote"
     }
-
+    
     try:
-        logging.info(f"Sending request to Pennylane with data: {estimate_data}")
         response = requests.post(
-            f"{PENNYLANE_API_URL}/customer_estimates",
+            f"{PENNYLANE_API_URL}/customer_estimates/{estimate_id}/send",
             headers=headers,
-            json=estimate_data
+            json=data
         )
         
-        logging.info(f"Pennylane response status: {response.status_code}")
-        logging.info(f"Pennylane response body: {response.text}")
-        
-        if response.status_code not in (200, 201):
+        if response.status_code != 200:
             logging.error(f"Pennylane API error: {response.text}")
-            raise HTTPException(status_code=response.status_code, 
-                              detail=f"Error creating estimate in Pennylane: {response.text}")
-        
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Error sending estimate for signature: {response.text}"
+            )
+            
         return response.json()
     except Exception as e:
-        logging.error(f"Error creating Pennylane estimate: {str(e)}")
-        raise HTTPException(status_code=500, 
-                          detail=f"Error creating estimate in Pennylane: {str(e)}")
+        logging.error(f"Error sending estimate for signature: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error sending estimate for signature: {str(e)}"
+        )

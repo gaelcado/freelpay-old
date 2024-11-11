@@ -4,7 +4,7 @@ from models.user import User
 from models.invoice import InvoiceCreate, Invoice, InvoiceInDB
 from services.ocr_service import process_invoice
 from services.scoring_service import calculate_score
-from services.pennylane import create_pennylane_estimate
+from services.pennylane import create_pennylane_estimate, send_estimate_for_signature
 from dependencies import get_current_user
 from database.db import create_invoice, get_user_invoices, update_invoice_status, get_invoice_by_id, update_invoice_pennylane_id
 from datetime import datetime
@@ -78,14 +78,43 @@ async def get_invoices(current_user: dict = Depends(get_current_user)):
         for invoice in invoices
     ]
 
-@router.post("/{invoice_id}/send", response_model=Invoice)
-async def send_invoice(invoice_id: str, current_user: User = Depends(get_current_user)):
+@router.post("/{invoice_id}/send")
+async def send_invoice(
+    invoice_id: str,
+    current_user: User = Depends(get_current_user)
+):
     try:
-        # Mettre à jour le statut de la facture à "Sent"
-        updated_invoice = await update_invoice_status(invoice_id, current_user['id'], "Sent")
-        if not updated_invoice:
+        invoice = await get_invoice_by_id(invoice_id)
+        if not invoice:
             raise HTTPException(status_code=404, detail="Invoice not found")
-        return updated_invoice
+            
+        if not invoice.get('pennylane_id'):
+            raise HTTPException(
+                status_code=400,
+                detail="Invoice must be created in Pennylane first"
+            )
+            
+        if not invoice.get('client_email'):
+            raise HTTPException(
+                status_code=400,
+                detail="Client email is required to send invoice"
+            )
+            
+        # Send estimate for signature
+        await send_estimate_for_signature(
+            invoice['pennylane_id'],
+            invoice['client_email']
+        )
+        
+        # Update invoice status
+        updated_invoice = await update_invoice_status(
+            invoice_id,
+            current_user['id'],
+            "Sent"
+        )
+        
+        return {"message": "Invoice sent successfully"}
+        
     except Exception as e:
         logging.error(f"Error sending invoice: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -144,22 +173,33 @@ async def create_pennylane_estimate_endpoint(
     current_user: User = Depends(get_current_user)
 ):
     try:
-        # Get invoice data from database
         invoice = await get_invoice_by_id(invoice_id)
         if not invoice:
             raise HTTPException(status_code=404, detail="Invoice not found")
         
-        logging.info(f"Retrieved invoice: {invoice}")
-            
-        # Convert dates to string format for Pennylane
-        invoice['due_date'] = invoice['due_date'].split('T')[0]  # Get only the date part
-            
-        # Create estimate in Pennylane
+        # Vérification des données requises
+        required_fields = ['client', 'amount', 'due_date']
+        for field in required_fields:
+            if not invoice.get(field):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Missing required field: {field}"
+                )
+        
         pennylane_response = await create_pennylane_estimate(invoice)
         
+        if not isinstance(pennylane_response, dict):
+            raise HTTPException(
+                status_code=500,
+                detail="Invalid response from Pennylane"
+            )
+            
         estimate_id = pennylane_response.get('estimate', {}).get('id')
         if not estimate_id:
-            raise HTTPException(status_code=500, detail="No estimate ID in response")
+            raise HTTPException(
+                status_code=500,
+                detail="No estimate ID in response"
+            )
             
         await update_invoice_pennylane_id(invoice_id, estimate_id)
         
@@ -167,11 +207,14 @@ async def create_pennylane_estimate_endpoint(
             "message": "Pennylane estimate created successfully",
             "estimate_id": estimate_id
         }
-        
+    except HTTPException:
+        raise
     except Exception as e:
-        logging.error(f"Error creating Pennylane estimate: {str(e)}")
-        raise HTTPException(status_code=500, 
-                          detail=f"Error creating Pennylane estimate: {str(e)}")
+        logging.error(f"Unexpected error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred"
+        )
 
 @router.get("/{invoice_id}/pdf-url")
 async def get_invoice_pdf_url(

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 import uuid
 from pydantic.json import timedelta_isoformat
@@ -13,13 +13,23 @@ class InvoiceBase(BaseModel):
 class InvoiceCreate(InvoiceBase):
     invoice_number: str
     client: str
-    amount: float = Field(gt=0)
-    due_date: datetime
-    description: Optional[str] = None
+    client_email: Optional[str] = None
+    client_phone: Optional[str] = None
     client_address: Optional[str] = None
     client_postal_code: Optional[str] = None
     client_city: Optional[str] = None
-    client_country: Optional[str] = "FR"
+    client_country: str = "FR"
+    client_vat_number: Optional[str] = None
+    client_type: str = "company"
+    amount: float = Field(gt=0)
+    currency: str = "EUR"
+    due_date: datetime
+    description: Optional[str] = None
+    payment_conditions: str = "upon_receipt"
+    language: str = "fr_FR"
+    line_items: Optional[List[dict]] = Field(default_factory=list)
+    special_mentions: Optional[str] = None
+    pdf_invoice_subject: Optional[str] = None
 
 class InvoiceInDB(InvoiceBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
