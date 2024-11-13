@@ -21,16 +21,33 @@ console.log('API_URL', API_URL)
 
 type Invoice = {
   id: string
-  created_date: string
-  amount: number
-  client: string
-  status: 'Sent' | 'Signed' | 'Freelpaid' | 'Draft'
-  financing_date?: string
-  possible_financing?: number
+  user_id: string
   invoice_number: string
+  client: string
+  amount: number
   due_date: string
   description?: string
+  created_date: string
+  status: 'Draft' | 'Sent' | 'Signed' | 'Freelpaid'
+  financing_date?: string
+  possible_financing?: number
   score?: number
+  pennylane_id?: string
+  client_email?: string
+  client_phone?: string
+  client_address?: string
+  client_postal_code?: string
+  client_city?: string
+  client_country?: string
+  client_vat_number?: string
+  client_type?: 'company' | 'individual'
+  payment_conditions?: string
+  currency?: string
+  language?: string
+  line_items?: any[] // Vous pouvez créer un type plus précis si nécessaire
+  special_mentions?: string
+  pdf_invoice_subject?: string
+  pdf_invoice_free_text?: string
 }
 
 export default function Dashboard() {
@@ -41,6 +58,8 @@ export default function Dashboard() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [showSendDialog, setShowSendDialog] = useState(false) // State for dialog visibility
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null) // State to hold the selected invoice ID
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [showPdfDialog, setShowPdfDialog] = useState(false);
   const { t } = useTranslation()
   const { toast } = useToast()
 
@@ -94,6 +113,20 @@ export default function Dashboard() {
   const confirmSendInvoice = async () => {
     if (selectedInvoiceId) {
       try {
+        // Trouver l'invoice sélectionnée
+        const invoice = filteredInvoices.find(inv => inv.id === selectedInvoiceId);
+        
+        // Vérifier si l'email du client existe
+        if (!invoice?.client_email) {
+          toast({
+            title: t('common.error'),
+            description: t('dashboard.clientEmailRequired'),
+            variant: 'destructive',
+          })
+          setShowSendDialog(false)
+          return;
+        }
+
         await api.post(`/invoices/${selectedInvoiceId}/send`)
         await fetchInvoices() // Rafraîchir la liste des factures
         toast({
@@ -112,9 +145,20 @@ export default function Dashboard() {
     }
   }
 
-  const handleView = (invoiceId: string) => {
-    console.log('Viewing invoice:', invoiceId)
-  }
+  const handleView = async (invoiceId: string) => {
+    try {
+      const response = await api.get(`/invoices/${invoiceId}/pdf-url`);
+      setPdfUrl(response.data.pdf_url);
+      setShowPdfDialog(true);
+    } catch (error) {
+      console.error('Error fetching PDF URL:', error);
+      toast({
+        title: t('common.error'),
+        description: t('dashboard.errorFetchingPdf'),
+        variant: 'destructive',
+      });
+    }
+  };
 
   const getStatusColor = (status: string | null) => {
     switch (status) {
@@ -218,6 +262,17 @@ export default function Dashboard() {
             <Button variant="outline" onClick={() => setShowSendDialog(false)}>{t('dashboard.cancel')}</Button>
             <Button onClick={confirmSendInvoice}>{t('dashboard.send')}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
+        <DialogContent className="max-w-4xl h-[80vh]">
+          {pdfUrl && (
+            <iframe 
+              src={pdfUrl} 
+              className="w-full h-full"
+              title="Invoice PDF"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </Card>

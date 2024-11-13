@@ -158,3 +158,14 @@ async def create_user(user_data: dict):
     except Exception as e:
         logging.error(f"Error creating user: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+async def get_invoice_by_id(invoice_id: str):
+    response = supabase.table('invoices').select('*').eq('id', invoice_id).execute()
+    return response.data[0] if response.data else None
+
+async def update_invoice_pennylane_id(invoice_id: str, pennylane_id: str):
+    response = supabase.table('invoices')\
+        .update({'pennylane_id': pennylane_id})\
+        .eq('id', invoice_id)\
+        .execute()
+    return response.data[0] if response.data else None
