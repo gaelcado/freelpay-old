@@ -169,3 +169,17 @@ async def update_invoice_pennylane_id(invoice_id: str, pennylane_id: str):
         .eq('id', invoice_id)\
         .execute()
     return response.data[0] if response.data else None
+
+async def update_invoice_pandadoc_id(invoice_id: str, pandadoc_id: str):
+    response = supabase.table('invoices')\
+        .update({'pandadoc_id': pandadoc_id})\
+        .eq('id', invoice_id)\
+        .execute()
+    return response.data[0] if response.data else None
+
+async def get_invoice_by_pandadoc_id(pandadoc_id: str):
+    response = supabase.table('invoices')\
+        .select('*')\
+        .eq('pandadoc_id', pandadoc_id)\
+        .execute()
+    return response.data[0] if response.data else None

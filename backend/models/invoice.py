@@ -59,6 +59,7 @@ class InvoiceInDB(InvoiceBase):
     possible_financing: Optional[float] = None
     score: Optional[float] = None
     pennylane_id: Optional[str] = None
+    pandadoc_id: Optional[str] = None
     payment_conditions: str = "upon_receipt"
     language: str = "fr_FR"
     line_items: Optional[List[dict]] = Field(default_factory=list)

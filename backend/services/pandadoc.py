@@ -20,7 +20,7 @@ async def send_document_for_signature(file_url: str, recipient_email: str, recip
             'Content-Type': 'application/json'
         }
         
-        # 1. Créer le document
+        # 1. Créer le document avec les champs de signature
         create_data = {
             "name": "Invoice for signature",
             "url": file_url,
@@ -31,14 +31,36 @@ async def send_document_for_signature(file_url: str, recipient_email: str, recip
                     "role": "signer"
                 }
             ],
+            "fields": {
+                "signature1": {
+                    "name": "Signature",
+                    "type": "signature",
+                    "role": "signer",
+                    "required": True,
+                    "page_number": 1
+                },
+                "date1": {
+                    "name": "Date",
+                    "type": "date",
+                    "role": "signer",
+                    "required": True,
+                    "page_number": 1
+                }
+            },
             "parse_form_fields": True
         }
+        
+        # Log de la requête pour déboguer
+        logging.info(f"Creating document with data: {create_data}")
         
         create_response = requests.post(
             f"{PANDADOC_API_URL}/documents",
             headers=headers,
             json=create_data
         )
+        
+        # Log de la réponse pour déboguer
+        logging.info(f"Create document response: {create_response.text}")
         
         if create_response.status_code != 201:
             raise HTTPException(
@@ -48,7 +70,7 @@ async def send_document_for_signature(file_url: str, recipient_email: str, recip
         
         document_id = create_response.json()['id']
         
-        # 2. Attendre que le document soit en état "draft"
+        # 2. Attendre que le document soit en état "document.draft"
         max_attempts = 10
         attempt = 0
         while attempt < max_attempts:
@@ -57,37 +79,20 @@ async def send_document_for_signature(file_url: str, recipient_email: str, recip
                 headers=headers
             )
             
-            if status_response.status_code != 200:
-                raise HTTPException(
-                    status_code=status_response.status_code,
-                    detail=f"Error checking document status: {status_response.text}"
-                )
-                
             status = status_response.json().get('status')
             if status == 'document.draft':
                 break
                 
-            if status not in ['document.uploaded', 'document.draft']:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unexpected document status: {status}"
-                )
-                
             attempt += 1
-            await asyncio.sleep(1)  # Attendre 1 seconde entre chaque tentative
-            
-        if attempt >= max_attempts:
-            raise HTTPException(
-                status_code=408,
-                detail="Timeout waiting for document to be ready"
-            )
-            
-        # 3. Envoyer le document pour signature
+            await asyncio.sleep(1)
+        
+        # 3. Envoyer le document
         send_response = requests.post(
             f"{PANDADOC_API_URL}/documents/{document_id}/send",
             headers=headers,
             json={
                 "message": "Please review and sign this document",
+                "subject": "Document ready for signature",
                 "silent": False
             }
         )
@@ -105,4 +110,39 @@ async def send_document_for_signature(file_url: str, recipient_email: str, recip
         raise HTTPException(
             status_code=500,
             detail=f"Error processing document: {str(e)}"
-        ) 
+        )
+
+async def setup_pandadoc_webhook(app_url: str):
+    try:
+        # S'assurer que l'URL se termine par /webhook/pandadoc
+        webhook_url = app_url.rstrip('/') + '/webhook/pandadoc'
+        
+        headers = {
+            'Authorization': f'API-Key {PANDADOC_API_KEY}',
+            'Content-Type': 'application/json'
+        }
+        
+        webhook_data = {
+            "name": "Document Status Webhook",
+            "url": webhook_url,
+            "events": ["document_state_changed"],
+            "active": True
+        }
+        
+        logging.info(f"Setting up webhook with URL: {webhook_url}")
+        
+        response = requests.post(
+            f"{PANDADOC_API_URL}/webhook-subscriptions",
+            headers=headers,
+            json=webhook_data
+        )
+        
+        if response.status_code not in (200, 201):
+            logging.error(f"Failed to setup PandaDoc webhook: {response.text}")
+            return False
+            
+        return True
+        
+    except Exception as e:
+        logging.error(f"Error setting up PandaDoc webhook: {str(e)}")
+        return False

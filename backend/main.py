@@ -1,8 +1,11 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import auth, user, invoice, siren
 from dotenv import load_dotenv
 import logging
+import os
+from services.pandadoc import setup_pandadoc_webhook
 
 # Configuration du logging
 logging.basicConfig(
@@ -21,7 +24,16 @@ logging.getLogger("python_multipart").setLevel(logging.WARNING)
 
 load_dotenv()
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Setup
+    app_url = os.getenv('APP_URL', 'https://freelpay.com/api')
+    if app_url:
+        await setup_pandadoc_webhook(app_url)
+    yield
+    # Cleanup (if needed)
+
+app = FastAPI(lifespan=lifespan)
 
 # Configurez CORS et autres middlewares ici
 app.add_middleware(

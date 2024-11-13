@@ -7,7 +7,7 @@ from services.scoring_service import calculate_score
 from services.pennylane import create_pennylane_estimate, send_estimate_for_signature
 from services.pandadoc import send_document_for_signature
 from dependencies import get_current_user
-from database.db import create_invoice, get_user_invoices, update_invoice_status, get_invoice_by_id, update_invoice_pennylane_id
+from database.db import create_invoice, get_user_invoices, update_invoice_status, get_invoice_by_id, update_invoice_pennylane_id, update_invoice_pandadoc_id
 from datetime import datetime
 import logging
 import requests
@@ -89,34 +89,36 @@ async def send_invoice_endpoint(
         if not invoice:
             raise HTTPException(status_code=404, detail="Invoice not found")
             
-        logging.info(f"Invoice data: {invoice}")
-        logging.info(f"Client email: {invoice.get('client_email')}")
-        
         if not invoice.get('client_email'):
             raise HTTPException(
                 status_code=400,
                 detail="Client email is required to send the quote"
             )
+            
+        if not invoice.get('pennylane_id'):
+            raise HTTPException(
+                status_code=400,
+                detail="Invoice must be created in Pennylane first"
+            )
         
-        # Get PDF URL from Pennylane
+        # 1. Récupérer l'URL du PDF depuis Pennylane
         pdf_response = await get_invoice_pdf_url(invoice_id, current_user)
         pdf_url = pdf_response["pdf_url"]
         
-        # Send for signature using PandaDoc
-        await send_document_for_signature(
+        # 2. Envoyer le document pour signature via PandaDoc
+        pandadoc_response = await send_document_for_signature(
             file_url=pdf_url,
             recipient_email=invoice['client_email'],
             recipient_name=invoice['client']
         )
         
-        # Update invoice status
-        await update_invoice_status(
-            invoice_id,
-            current_user['id'],
-            "Sent"
-        )
+        # 3. Mettre à jour le statut de la facture
+        await update_invoice_status(invoice_id, current_user['id'], "Sent")
         
-        return {"message": "Invoice sent successfully"}
+        # 4. Stocker l'ID du document PandaDoc
+        await update_invoice_pandadoc_id(invoice_id, pandadoc_response['id'])
+        
+        return {"message": "Invoice sent successfully for signature"}
         
     except Exception as e:
         logging.error(f"Error sending invoice: {str(e)}")
