@@ -32,22 +32,34 @@ async def send_document_for_signature(file_url: str, recipient_email: str, recip
                 }
             ],
             "fields": {
-                "signature1": {
+                "signature": {
                     "name": "Signature",
                     "type": "signature",
                     "role": "signer",
                     "required": True,
-                    "page_number": 1
+                    "page_number": 1,
+                    "x": 100,
+                    "y": 700,
+                    "width": 200,
+                    "height": 50
                 },
-                "date1": {
+                "date": {
                     "name": "Date",
                     "type": "date",
                     "role": "signer",
                     "required": True,
-                    "page_number": 1
+                    "page_number": 1,
+                    "x": 350,
+                    "y": 700,
+                    "width": 150,
+                    "height": 50
                 }
             },
-            "parse_form_fields": True
+            "metadata": {
+                "source": "pennylane"
+            },
+            "parse_form_fields": False,
+            "tags": ["signature_required"]
         }
         
         # Log de la requête pour déboguer
