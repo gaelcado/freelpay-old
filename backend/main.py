@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import auth, user, invoice, siren
+from routers import auth, user, invoice, siren, docs
 from dotenv import load_dotenv
 import logging
 import os
@@ -44,8 +44,6 @@ app = FastAPI(
     * 📝 Document Signing
     """,
     version="1.0.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
     openapi_tags=[
         {
             "name": "auth",
@@ -64,7 +62,11 @@ app = FastAPI(
             "description": "SIREN number validation operations"
         }
     ],
-    lifespan=lifespan
+    lifespan=lifespan,
+    root_path="/api",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url="/openapi.json"
 )
 
 # Configurez CORS et autres middlewares ici
@@ -74,10 +76,7 @@ app.add_middleware(
         "http://localhost:3000", 
         "http://frontend:3000", 
         "https://freelpay-nextjs-pm2fo.ondigitalocean.app",
-        "https://freelpay.com",
-        "https://freelpay.com/api",
-        "https://freelpay.com/api/docs",
-        "https://freelpay.com/api/redoc"
+        "https://freelpay.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -89,6 +88,7 @@ app.add_middleware(
 app.max_request_size = 10 * 1024 * 1024  # 10 Mo en octets
 
 # Inclure les routers
+app.include_router(docs.router)
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(user.router, prefix="/users", tags=["users"])
 app.include_router(invoice.router, prefix="/invoices", tags=["invoices"])
