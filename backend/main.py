@@ -44,8 +44,8 @@ app = FastAPI(
     * 📝 Document Signing
     """,
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
     openapi_tags=[
         {
             "name": "auth",
@@ -74,7 +74,10 @@ app.add_middleware(
         "http://localhost:3000", 
         "http://frontend:3000", 
         "https://freelpay-nextjs-pm2fo.ondigitalocean.app",
-        "https://freelpay.com"
+        "https://freelpay.com",
+        "https://freelpay.com/api",
+        "https://freelpay.com/api/docs",
+        "https://freelpay.com/api/redoc"
     ],
     allow_credentials=True,
     allow_methods=["*"],
