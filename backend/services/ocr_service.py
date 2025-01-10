@@ -67,14 +67,6 @@ async def process_invoice(file):
         return {"error": "Failed to process the invoice. Please try again."}
 
 async def is_invoice(text):
-    # Utiliser le LLM pour analyser le texte
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0,
-        openai_api_key=openai_api_key
-    )
-    
-async def is_invoice(text):
     # Utiliser le LLM pour déterminer si le texte décrit une facture
     llm = ChatOpenAI(
         model="gpt-4o-mini",
