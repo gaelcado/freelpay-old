@@ -13,16 +13,32 @@ services:
     routes:
       - path: /api
     envs:
-      - key: SUPABASE_URL
-        value: ${SUPABASE_URL}
-      - key: SUPABASE_ANON_KEY
-        value: ${SUPABASE_ANON_KEY}
+      - key: MONGO_URI
+        value: ${MONGO_URI}
+      - key: MONGO_DB_NAME
+        value: ${MONGO_DB_NAME}
       - key: JWT_SECRET_KEY
         value: ${JWT_SECRET_KEY}
       - key: OPENAI_API_KEY
         value: ${OPENAI_API_KEY}
       - key: FRONTEND_URL
         value: ${FRONTEND_URL}
+      - key: SUPABASE_DB_NAME
+        value: ${SUPABASE_DB_NAME}
+      - key: SUPABASE_URL
+        value: ${SUPABASE_URL}
+      - key: SUPABASE_ANON_KEY
+        value: ${SUPABASE_ANON_KEY}
+      - key: SUPABASE_SERVICE_KEY
+        value: ${SUPABASE_SERVICE_KEY}
+      - key: SUPABASE_POSTGRES_URI
+        value: ${SUPABASE_POSTGRES_URI}
+      - key: SIREN_API_KEY
+        value: ${SIREN_API_KEY}
+      - key: PENNYLANE_API_KEY
+        value: ${PENNYLANE_API_KEY}
+      - key: PANDADOC_API_KEY
+        value: ${PANDADOC_API_KEY}
    
   - name: frontend
     source_dir: frontend

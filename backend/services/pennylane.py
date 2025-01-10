@@ -3,7 +3,6 @@ import requests
 from datetime import datetime
 from fastapi import HTTPException
 import logging
-from database.db import update_invoice_pennylane_id
 import uuid
 
 PENNYLANE_API_KEY = os.getenv('PENNYLANE_API_KEY')

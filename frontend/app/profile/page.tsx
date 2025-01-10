@@ -9,8 +9,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import api from '@/lib/api'
-import { useAuth } from '@/components/AuthContext' // Import the Auth context
-import { useTranslation, TranslationKey } from '@/hooks/useTranslation' // Ajouter le hook de traduction
+import { useTranslation } from '@/hooks/useTranslation'
 import { validateSiren, CompanyInfo } from '@/lib/sirenApi'
 import { getStatusText, getStaffCategory } from '@/lib/utils/companyUtils'
 
@@ -39,14 +38,14 @@ export default function Profile() {
     phone: '',
     address: '',
     id_document: undefined,
-    id_document_status: 'not_uploaded' // Initialize with default status
+    id_document_status: 'not_uploaded'
   });
-  const [idDocument, setIdDocument] = useState<string | null>(null); // State for ID document
-  const [idDocumentStatus, setIdDocumentStatus] = useState('not_uploaded'); // State for ID document status
+  const [idDocument, setIdDocument] = useState<string | null>(null);
+  const [idDocumentStatus, setIdDocumentStatus] = useState('not_uploaded');
   const [registrationMethod, setRegistrationMethod] = useState<'email' | 'google' | null>(null);
   const [sirenLocked, setSirenLocked] = useState(false);
   const { toast } = useToast()
-  const { t } = useTranslation() // Ajouter le hook de traduction
+  const { t } = useTranslation()
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
 
   useEffect(() => {
@@ -58,14 +57,14 @@ export default function Profile() {
       const response = await api.get('/users/me')
       const userData = response.data
 
-      // Populate fields based on user data
-      setName(userData.username || ''); // Set name if available
-      setEmail(userData.email || ''); // Always set email
-      setSiren(userData.siren_number || ''); // Set SIREN if available
-      setPhone(userData.phone || ''); // Set phone if available
-      setAddress(userData.address || ''); // Set address if available
+      // Remplir les champs en fonction des données de l'utilisateur
+      setName(userData.username || '');
+      setEmail(userData.email || '');
+      setSiren(userData.siren_number || '');
+      setPhone(userData.phone || '');
+      setAddress(userData.address || '');
       setIdDocument(userData.id_document || null);
-      setIdDocumentStatus(userData.id_document_status || 'not_uploaded'); // Set ID document status
+      setIdDocumentStatus(userData.id_document_status || 'not_uploaded');
 
       // Déterminer la méthode d'inscription et si le SIREN est verrouillé
       setRegistrationMethod(userData.registration_method || 'email');
@@ -96,14 +95,14 @@ export default function Profile() {
       siren !== originalDataTyped.siren_number ||
       phone !== originalDataTyped.phone ||
       address !== originalDataTyped.address ||
-      idDocument !== originalDataTyped.id_document; // Check for changes in id_document
+      idDocument !== originalDataTyped.id_document;
     setHasChanges(hasChanged);
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      // If SIREN has changed and is not locked, validate it first
+      // Si le SIREN a changé et n'est pas verrouillé, le valider d'abord
       if (siren !== originalData.siren_number && !sirenLocked) {
         try {
           await validateSiren(siren, t)

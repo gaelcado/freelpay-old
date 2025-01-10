@@ -31,7 +31,6 @@ async def lifespan(app: FastAPI):
     if app_url:
         await setup_pandadoc_webhook(app_url)
     yield
-    # Cleanup (if needed)
 
 app = FastAPI(lifespan=lifespan)
 
@@ -53,7 +52,7 @@ app.add_middleware(
 # Configurez la taille maximale du corps de la requête à 10 Mo
 app.max_request_size = 10 * 1024 * 1024  # 10 Mo en octets
 
-# Include routers
+# Inclure les routers
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(user.router, prefix="/users", tags=["users"])
 app.include_router(invoice.router, prefix="/invoices", tags=["invoices"])

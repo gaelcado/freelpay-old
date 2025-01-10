@@ -44,7 +44,7 @@ type Invoice = {
   payment_conditions?: string
   currency?: string
   language?: string
-  line_items?: any[] // Vous pouvez créer un type plus précis si nécessaire
+  line_items?: any[]
   special_mentions?: string
   pdf_invoice_subject?: string
   pdf_invoice_free_text?: string
@@ -94,9 +94,9 @@ export default function Dashboard() {
       filtered = filtered.filter(invoice => invoice.status === statusFilter)
     }
 
-    if (dateRange && dateRange.from && dateRange.to) { // Added check for dateRange
+    if (dateRange && dateRange.from && dateRange.to) {
       filtered = filtered.filter(invoice => {
-        if (!dateRange.from || !dateRange.to) return false; // Ensure from and to are defined
+        if (!dateRange.from || !dateRange.to) return false;
         const invoiceDate = new Date(invoice.created_date)
         return invoiceDate >= dateRange.from && invoiceDate <= dateRange.to
       })
@@ -106,8 +106,8 @@ export default function Dashboard() {
   }
 
   const handleSend = (invoiceId: string) => {
-    setSelectedInvoiceId(invoiceId); // Set the selected invoice ID
-    setShowSendDialog(true); // Show the confirmation dialog
+    setSelectedInvoiceId(invoiceId);
+    setShowSendDialog(true);
   };
 
   const confirmSendInvoice = async () => {

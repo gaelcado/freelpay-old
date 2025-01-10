@@ -10,11 +10,11 @@ from pydantic import BaseModel, Field
 import os
 import logging
 
-# Configure logging
+# Configurer le logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Load OpenAI API key from environment variable
+# Récupérer la clé API OpenAI
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
 class InvoiceData(BaseModel):
@@ -33,12 +33,12 @@ async def process_invoice(file):
     
     logger.debug("Extracted text: %s", text)
 
-    # Use LLM to determine if the text describes an invoice
+    # Utiliser le LLM pour déterminer si le texte décrit une facture
     if not await is_invoice(text):
         logger.debug("Document is not an invoice.")
         return {"error": "Oops, it seems you uploaded the wrong document. Please upload an invoice to proceed."}
     
-    # Use ChatOpenAI to extract invoice information
+    # Utiliser ChatOpenAI pour extraire les informations de la facture
     llm = ChatOpenAI(
         model="gpt-4o-mini",
         temperature=0,
@@ -67,7 +67,7 @@ async def process_invoice(file):
         return {"error": "Failed to process the invoice. Please try again."}
 
 async def is_invoice(text):
-    # Use LLM to semantically analyze the text
+    # Utiliser le LLM pour analyser le texte
     llm = ChatOpenAI(
         model="gpt-4o-mini",
         temperature=0,
@@ -75,7 +75,7 @@ async def is_invoice(text):
     )
     
 async def is_invoice(text):
-    # Use LLM to semantically analyze the text
+    # Utiliser le LLM pour déterminer si le texte décrit une facture
     llm = ChatOpenAI(
         model="gpt-4o-mini",
         temperature=0,

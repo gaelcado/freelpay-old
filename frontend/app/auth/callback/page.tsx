@@ -20,7 +20,7 @@ export default function AuthCallback() {
       if (session) {
         try {
           const { user } = session
-          // Check if user already exists
+          // Vérifier si l'utilisateur existe déjà
           const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/me`, {
             headers: {
               'Authorization': `Bearer ${session.access_token}`
@@ -28,7 +28,7 @@ export default function AuthCallback() {
           });
 
           if (response.status === 404) {
-            // User doesn't exist, create new profile
+            // L'utilisateur n'existe pas, créer un nouveau profil
             const createResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
               method: 'POST',
               headers: {
