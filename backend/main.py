@@ -32,7 +32,40 @@ async def lifespan(app: FastAPI):
         await setup_pandadoc_webhook(app_url)
     yield
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="Freelpay API",
+    description="""
+    API for managing freelancer invoices and payments.
+    
+    ## Features
+    * 👤 User Authentication
+    * 📄 Invoice Management
+    * 🔍 SIREN Validation
+    * 📝 Document Signing
+    """,
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_tags=[
+        {
+            "name": "auth",
+            "description": "Authentication operations"
+        },
+        {
+            "name": "users",
+            "description": "User management operations"
+        },
+        {
+            "name": "invoices",
+            "description": "Invoice management operations"
+        },
+        {
+            "name": "siren",
+            "description": "SIREN number validation operations"
+        }
+    ],
+    lifespan=lifespan
+)
 
 # Configurez CORS et autres middlewares ici
 app.add_middleware(
