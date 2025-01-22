@@ -79,16 +79,37 @@ async def get_invoice_info(invoice_id: str):
 @router.put("/{invoice_id}", response_model=Invoice)
 async def update_invoice_info(
     invoice_id: str,
-    invoice_data: InvoiceCreate,
-    current_user: Optional[dict] = Depends(get_optional_user)
+    invoice_data: InvoiceCreate
 ):
-    existing_invoice = await get_invoice_by_id(invoice_id)
-    if not existing_invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
+    """
+    Met à jour les informations d'une facture pendant l'onboarding
+    """
+    try:
+        existing_invoice = await get_invoice_by_id(invoice_id)
+        if not existing_invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
         
-    # If user is authenticated, associate invoice with user
-    if current_user and not existing_invoice["user_id"]:
-        invoice_data.user_id = current_user["id"]
+        # Filtrer les champs qui existent dans la table invoices
+        update_data = {
+            "invoice_number": invoice_data.invoice_number,
+            "client": invoice_data.client,
+            "amount": invoice_data.amount,
+            "due_date": invoice_data.due_date,
+            "description": invoice_data.description,
+            "client_email": invoice_data.client_email,
+            "client_phone": invoice_data.client_phone,
+            "client_address": invoice_data.client_address,
+            "client_postal_code": invoice_data.client_postal_code,
+            "client_city": invoice_data.client_city,
+            "client_vat_number": invoice_data.client_vat_number
+        }
         
-    updated_invoice = await update_invoice(invoice_id, invoice_data.dict())
-    return updated_invoice 
+        # Retirer les champs None pour ne pas écraser les valeurs existantes
+        update_data = {k: v for k, v in update_data.items() if v is not None}
+        
+        updated_invoice = await update_invoice(invoice_id, update_data)
+        return updated_invoice
+        
+    except Exception as e:
+        logging.error(f"Error updating invoice: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e)) 
