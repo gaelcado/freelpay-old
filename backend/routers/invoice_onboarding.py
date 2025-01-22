@@ -26,6 +26,7 @@ class InvoiceUpdate(BaseModel):
     client_city: Optional[str] = None
     client_country: Optional[str] = None
     client_vat_number: Optional[str] = None
+    client_siren: Optional[str] = None
     amount: Optional[float] = None
     currency: Optional[str] = None
     due_date: Optional[datetime] = None
