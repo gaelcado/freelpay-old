@@ -82,7 +82,8 @@ async def process_invoice(file):
             "client_address": extracted_data.client_address,
             "client_postal_code": extracted_data.client_postal_code,
             "client_city": extracted_data.client_city,
-            "client_vat_number": extracted_data.client_vat_number
+            "client_vat_number": extracted_data.client_vat_number,
+            "client_siren": extracted_data.client_siren
         }
         
     except Exception as e:
@@ -118,12 +119,27 @@ async def extract_invoice_data(text):
             model="gpt-4o-mini",
             response_format={ "type": "json_object" },
             messages=[
-                {"role": "system", "content": """Extract invoice information into this exact structure:
+                {"role": "system", "content": """You are an invoice data extraction assistant. 
+                Extract ALL these fields from the invoice:
+                - invoice_number (required): The invoice reference number
+                - client (required): The company being billed
+                - amount (required): The total amount as a number
+                - due_date (required): The payment due date in YYYY-MM-DD format
+                - description: Brief description of services
+                - client_email: Client's email if present
+                - client_phone: Client's phone if present
+                - client_address: Client's address if present
+                - client_postal_code: Client's postal code if present
+                - client_city: Client's city if present
+                - client_vat_number: Client's VAT number if present
+                - client_siren: Client's SIREN number (9 digits) if present
+
+                Return the data as a JSON with this exact structure:
                 {
-                    "invoice_number": "string (required)",
-                    "client": "string (required)",
-                    "amount": "number (required)",
-                    "due_date": "YYYY-MM-DD (required)",
+                    "invoice_number": "string",
+                    "client": "string",
+                    "amount": number,
+                    "due_date": "YYYY-MM-DD",
                     "description": "string or null",
                     "client_email": "string or null",
                     "client_phone": "string or null",
@@ -131,9 +147,9 @@ async def extract_invoice_data(text):
                     "client_postal_code": "string or null",
                     "client_city": "string or null",
                     "client_vat_number": "string or null",
-                    "client_siren": "string or null (9 digits, required)"
+                    "client_siren": "string or null"
                 }"""},
-                {"role": "user", "content": f"Extract invoice data from this text and return as JSON: {text}"}
+                {"role": "user", "content": f"Extract ALL required fields from this invoice text and return as JSON: {text}"}
             ]
         )
         
