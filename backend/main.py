@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import auth, user, invoice, siren, docs
+from routers import auth, user, invoice, siren, docs, invoice_onboarding
 from dotenv import load_dotenv
 import logging
 import os
@@ -92,8 +92,8 @@ app.include_router(docs.router)
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(user.router, prefix="/users", tags=["users"])
 app.include_router(invoice.router, prefix="/invoices", tags=["invoices"])
-app.include_router(siren.router, prefix="/api/siren", tags=["siren"])
-
+app.include_router(siren.router, prefix="/siren", tags=["siren"])
+app.include_router(invoice_onboarding.router, prefix="/invoices", tags=["invoice-onboarding"])
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -4,25 +4,63 @@ import logging
 
 router = APIRouter()
 
-@router.post("/pandadoc")
+@router.post(
+    "/pandadoc",
+    tags=["webhooks"],
+    summary="PandaDoc webhook endpoint",
+    description="""
+    Handles PandaDoc webhook notifications for document status changes.
+    Updates invoice status when documents are signed.
+    """,
+    responses={
+        200: {
+            "description": "Webhook processed successfully",
+            "content": {
+                "application/json": {
+                    "example": {"status": "success"}
+                }
+            }
+        },
+        404: {
+            "description": "Invoice not found",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Invoice not found"}
+                }
+            }
+        },
+        500: {
+            "description": "Processing error",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Error processing webhook"}
+                }
+            }
+        }
+    }
+)
 async def pandadoc_webhook(request: Request):
+    """
+    Process PandaDoc webhook notifications
+    
+    Parameters:
+    - request: Webhook payload from PandaDoc
+    
+    Returns:
+    - Status confirmation
+    """
     try:
         payload = await request.json()
-        
-        # Log du webhook reçu
         logging.info(f"Received PandaDoc webhook: {payload}")
         
-        # Vérifier le type d'événement
         if payload.get('event') == 'document_state_changed':
             document_status = payload['data']['status']
             document_id = payload['data']['id']
             
-            # Récupérer l'invoice correspondante
             invoice = await get_invoice_by_pandadoc_id(document_id)
             if not invoice:
                 raise HTTPException(status_code=404, detail="Invoice not found")
             
-            # Mettre à jour le statut selon l'état du document
             if document_status == 'document.completed':
                 await update_invoice_status(
                     invoice_id=invoice['id'],

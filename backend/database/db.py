@@ -66,17 +66,29 @@ async def update_user_profile(user_id: str, update_data: dict):
     return response.data[0] if response.data else None
 
 async def create_invoice(invoice_data: dict):
-    # Convertir les dates en chaînes ISO
-    if 'created_date' in invoice_data:
-        invoice_data['created_date'] = invoice_data['created_date'].isoformat()
-    if 'due_date' in invoice_data:
-        invoice_data['due_date'] = invoice_data['due_date'].isoformat()
-    if 'financing_date' in invoice_data and invoice_data['financing_date']:
-        invoice_data['financing_date'] = invoice_data['financing_date'].isoformat()
+    try:
+        # Convertir les dates en chaînes ISO
+        if 'created_date' in invoice_data:
+            invoice_data['created_date'] = invoice_data['created_date'].isoformat()
+        if 'due_date' in invoice_data:
+            invoice_data['due_date'] = invoice_data['due_date'].isoformat()
+        if 'financing_date' in invoice_data and invoice_data['financing_date']:
+            invoice_data['financing_date'] = invoice_data['financing_date'].isoformat()
         
-    invoice_data['id'] = str(uuid.uuid4())
-    response = supabase.table('invoices').insert(invoice_data).execute()
-    return response.data[0] if response.data else None
+        # Ne pas regénérer l'ID s'il existe déjà
+        if 'id' not in invoice_data:
+            invoice_data['id'] = str(uuid.uuid4())
+            
+        response = supabase.table('invoices').insert(invoice_data).execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=500, detail="Failed to create invoice")
+            
+        return response.data[0]
+        
+    except Exception as e:
+        logging.error(f"Error creating invoice: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 async def get_user_invoices(user_id: str):
     try:
@@ -183,3 +195,50 @@ async def get_invoice_by_pandadoc_id(pandadoc_id: str):
         .eq('pandadoc_id', pandadoc_id)\
         .execute()
     return response.data[0] if response.data else None
+
+async def update_invoice_score(invoice_id: str, score: float, possible_financing: float):
+    """
+    Update the score and possible financing amount for an invoice
+    """
+    response = supabase.table('invoices')\
+        .update({
+            'score': score,
+            'possible_financing': possible_financing
+        })\
+        .eq('id', invoice_id)\
+        .execute()
+    return response.data[0] if response.data else None
+
+async def update_invoice(invoice_id: str, update_data: dict):
+    """
+    Met à jour une facture existante
+    
+    Args:
+        invoice_id: ID de la facture à mettre à jour
+        update_data: Dictionnaire contenant les champs à mettre à jour
+        
+    Returns:
+        La facture mise à jour
+    """
+    try:
+        # Convertir les dates en chaînes ISO si présentes
+        if 'created_date' in update_data:
+            update_data['created_date'] = update_data['created_date'].isoformat()
+        if 'due_date' in update_data:
+            update_data['due_date'] = update_data['due_date'].isoformat()
+        if 'financing_date' in update_data and update_data['financing_date']:
+            update_data['financing_date'] = update_data['financing_date'].isoformat()
+
+        response = supabase.table('invoices')\
+            .update(update_data)\
+            .eq('id', invoice_id)\
+            .execute()
+            
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+            
+        return response.data[0]
+        
+    except Exception as e:
+        logging.error(f"Error updating invoice: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
