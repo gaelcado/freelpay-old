@@ -8,12 +8,28 @@ from database.db import create_invoice, get_invoice_by_id, update_invoice
 import logging
 import uuid
 from datetime import datetime
+from pydantic import BaseModel
 
 router = APIRouter(
     prefix="/onboarding",
     tags=["invoice-onboarding"],
     responses={404: {"description": "Not found"}}
 )
+
+class InvoiceUpdate(BaseModel):
+    invoice_number: Optional[str] = None
+    client: Optional[str] = None
+    client_email: Optional[str] = None
+    client_phone: Optional[str] = None
+    client_address: Optional[str] = None
+    client_postal_code: Optional[str] = None
+    client_city: Optional[str] = None
+    client_country: Optional[str] = None
+    client_vat_number: Optional[str] = None
+    amount: Optional[float] = None
+    currency: Optional[str] = None
+    due_date: Optional[datetime] = None
+    description: Optional[str] = None
 
 @router.post("/upload", response_model=OCRResponse)
 async def upload_invoice(file: UploadFile = File(...)):
@@ -79,7 +95,7 @@ async def get_invoice_info(invoice_id: str):
 @router.put("/{invoice_id}", response_model=Invoice)
 async def update_invoice_info(
     invoice_id: str,
-    invoice_data: InvoiceCreate
+    invoice_data: InvoiceUpdate
 ):
     """
     Met à jour les informations d'une facture pendant l'onboarding
@@ -89,23 +105,14 @@ async def update_invoice_info(
         if not existing_invoice:
             raise HTTPException(status_code=404, detail="Invoice not found")
         
-        # Filtrer les champs qui existent dans la table invoices
+        # Convertir le modèle Pydantic en dict et filtrer les None
         update_data = {
-            "invoice_number": invoice_data.invoice_number,
-            "client": invoice_data.client,
-            "amount": invoice_data.amount,
-            "due_date": invoice_data.due_date,
-            "description": invoice_data.description,
-            "client_email": invoice_data.client_email,
-            "client_phone": invoice_data.client_phone,
-            "client_address": invoice_data.client_address,
-            "client_postal_code": invoice_data.client_postal_code,
-            "client_city": invoice_data.client_city,
-            "client_vat_number": invoice_data.client_vat_number
+            k: v for k, v in invoice_data.model_dump().items() 
+            if v is not None
         }
         
-        # Retirer les champs None pour ne pas écraser les valeurs existantes
-        update_data = {k: v for k, v in update_data.items() if v is not None}
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No fields to update")
         
         updated_invoice = await update_invoice(invoice_id, update_data)
         return updated_invoice
