@@ -118,28 +118,22 @@ async def extract_invoice_data(text):
             model="gpt-4o-mini",
             response_format={ "type": "json_object" },
             messages=[
-                {"role": "system", "content": """You are an invoice data extraction assistant. 
-                You MUST extract and return ALL these required fields:
-                - invoice_number (from Invoice reference)
-                - client (company being billed)
-                - amount (total amount as number)
-                - due_date (in YYYY-MM-DD format)
-                
-                Return the data as a JSON with this structure:
+                {"role": "system", "content": """Extract invoice information into this exact structure:
                 {
-                    "invoice_number": "string",
-                    "client": "string",
-                    "amount": number,
-                    "due_date": "YYYY-MM-DD",
+                    "invoice_number": "string (required)",
+                    "client": "string (required)",
+                    "amount": "number (required)",
+                    "due_date": "YYYY-MM-DD (required)",
                     "description": "string or null",
                     "client_email": "string or null",
                     "client_phone": "string or null",
                     "client_address": "string or null",
                     "client_postal_code": "string or null",
                     "client_city": "string or null",
-                    "client_vat_number": "string or null"
+                    "client_vat_number": "string or null",
+                    "client_siren": "string or null (9 digits, required)"
                 }"""},
-                {"role": "user", "content": f"Extract ALL required fields from this invoice text and return as JSON: {text}"}
+                {"role": "user", "content": f"Extract invoice data from this text and return as JSON: {text}"}
             ]
         )
         

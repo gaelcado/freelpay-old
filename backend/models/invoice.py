@@ -94,6 +94,7 @@ class Invoice(InvoiceBase):
     line_items: Optional[List[dict]] = Field(default_factory=list)
     special_mentions: Optional[str] = None
     pdf_invoice_subject: Optional[str] = None
+    client_siren: Optional[str] = None
 
 class ScoreDetails(BaseModel):
     siren_score: float = Field(

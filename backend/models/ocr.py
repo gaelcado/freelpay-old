@@ -14,6 +14,7 @@ class OCRResult(BaseModel):
     client_postal_code: Optional[str] = None
     client_city: Optional[str] = None
     client_vat_number: Optional[str] = None
+    client_siren: Optional[str] = None
 
 class OCRResponse(BaseModel):
     invoice_id: str
