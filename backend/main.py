@@ -76,11 +76,13 @@ app.add_middleware(
         "http://localhost:3000", 
         "http://frontend:3000", 
         "https://freelpay-nextjs-pm2fo.ondigitalocean.app",
-        "https://freelpay.com"
+        "https://freelpay.com",
+        "https://app.wized.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
     max_age=600,
 )
 
