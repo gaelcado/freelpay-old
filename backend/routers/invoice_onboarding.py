@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
-from typing import Optional
+from typing import Optional, List
 from models.ocr import OCRResponse, OCRResult
 from models.invoice import Invoice, InvoiceCreate, InvoiceUpdate, OCRStatus
 from services.ocr_service import process_invoice_async
@@ -8,12 +8,62 @@ from database.supabase_client import supabase
 import logging
 import uuid
 from datetime import datetime, timedelta
+from pydantic import BaseModel, Field
 
 router = APIRouter(
     tags=["invoice-onboarding"],
     responses={404: {"description": "Not found"}},
     prefix="/onboarding"
 )
+
+class ManualInvoiceCreate(BaseModel):
+    # Champs obligatoires
+    invoice_number: str = Field(..., description="Numéro de facture unique")
+    client: str = Field(..., description="Nom du client ou de l'entreprise")
+    client_email: str = Field(..., description="Email du client")
+    client_phone: str = Field(..., description="Téléphone du client")
+    client_address: str = Field(..., description="Adresse du client")
+    client_type: str = Field(..., pattern="^(company|individual)$", description="Type de client (company ou individual)")
+    amount: float = Field(..., gt=0, description="Montant de la facture")
+    due_date: datetime = Field(..., description="Date d'échéance")
+    currency: str = Field(..., description="Devise de la facture")
+    payment_conditions: str = Field(..., description="Conditions de paiement")
+    client_siren: str = Field(..., description="Numéro SIREN du client")
+    description: str = Field(..., description="Description des services ou produits")
+    language: str = Field(..., description="Langue de la facture")
+    special_mentions: str = Field(..., description="Mentions spéciales sur la facture")
+    pdf_invoice_subject: str = Field(..., description="Sujet du PDF de la facture")
+    
+    # Champs optionnels
+    client_postal_code: Optional[str] = Field(None, description="Code postal du client")
+    client_city: Optional[str] = Field(None, description="Ville du client")
+    client_country: str = Field("FR", description="Code pays du client")
+    client_vat_number: Optional[str] = Field(None, description="Numéro de TVA du client")
+    line_items: Optional[List[dict]] = Field(default_factory=list, description="Lignes de facturation détaillées")
+    pdf_invoice_free_text: Optional[str] = Field(None, description="Texte libre sur le PDF de la facture")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "invoice_number": "2024-001",
+                "client": "ORIA BIOSCIENCE SAS",
+                "client_email": "contact@example.com",
+                "client_phone": "06 40 381 5803",
+                "client_address": "6, Rue Jean Calvin",
+                "client_type": "company",
+                "amount": 1250.0,
+                "due_date": "2024-09-06T00:00:00Z",
+                "currency": "EUR",
+                "payment_conditions": "30_days",
+                "client_siren": "979617123",
+                "description": "Développement d'un site internet responsive sous Webflow",
+                "language": "fr_FR",
+                "special_mentions": "TVA non applicable, art. 293 B du CGI",
+                "pdf_invoice_subject": "Facture développement site web",
+                "client_postal_code": "75005",
+                "client_city": "Paris"
+            }
+        }
 
 @router.post(
     "/upload",
@@ -81,6 +131,47 @@ async def upload_invoice_ocr(
         logging.error(f"Upload error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post(
+    "/manual",
+    response_model=Invoice,
+    summary="Créer une facture manuellement",
+    description="""
+    Crée une nouvelle facture manuellement en fournissant toutes les informations nécessaires.
+    Cette route fait partie du processus d'onboarding et ne nécessite pas d'authentification.
+    """
+)
+async def create_manual_invoice(invoice: ManualInvoiceCreate):
+    try:
+        # Générer un ID unique pour la facture
+        invoice_id = str(uuid.uuid4())
+        
+        # Préparer les données de la facture
+        invoice_data = {
+            "id": invoice_id,
+            "status": "Draft",  # Statut initial pour une création manuelle
+            "created_date": datetime.now(),
+            "user_id": None,  # Sera défini après l'inscription
+            **invoice.dict()
+        }
+        
+        # Créer la facture dans la base de données
+        created_invoice = await create_invoice(invoice_data)
+        
+        if not created_invoice:
+            raise HTTPException(
+                status_code=500,
+                detail="Échec de la création de la facture"
+            )
+        
+        return created_invoice
+        
+    except Exception as e:
+        logging.error(f"Erreur lors de la création manuelle de la facture: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors de la création de la facture: {str(e)}"
+        ) 
+    
 @router.get(
     "/{invoice_id}",
     response_model=Invoice,
@@ -221,4 +312,4 @@ async def update_invoice_info(
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while updating the invoice: {str(e)}"
-        ) 
+        )
