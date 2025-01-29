@@ -5,7 +5,6 @@ import io
 from datetime import datetime
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
-from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 import os
 import logging
@@ -13,8 +12,7 @@ from typing import Optional
 import json
 from openai import OpenAI
 from models.ocr import OCRResult
-import httpx
-import asyncio
+from database.db import update_invoice
 
 # Configurer le logging
 logging.basicConfig(level=logging.DEBUG)
@@ -22,40 +20,10 @@ logger = logging.getLogger(__name__)
 
 # Récupérer les variables d'environnement
 openai_api_key = os.getenv("OPENAI_API_KEY")
-APP_URL = os.getenv("APP_URL", "http://localhost:8000")
-OCR_WEBHOOK_SECRET = os.getenv("OCR_WEBHOOK_SECRET")
-
-class InvoiceData(BaseModel):
-    invoice_number: str = Field(description="The unique identifier for the invoice")
-    client: str = Field(description="The name of the client or company being billed")
-    client_email: Optional[str] = Field(description="Client's email address")
-    client_phone: Optional[str] = Field(description="Client's phone number")
-    client_address: Optional[str] = Field(description="Client's address")
-    client_postal_code: Optional[str] = Field(description="Client's postal code")
-    client_city: Optional[str] = Field(description="Client's city")
-    client_country: str = Field(description="Client's country code", default="FR")
-    client_siren: Optional[str] = Field(description="Client's SIREN number")
-    client_vat_number: Optional[str] = Field(description="Client's VAT number")
-    amount: float = Field(description="The total amount due on the invoice")
-    due_date: datetime = Field(description="The date by which the invoice must be paid")
-    description: str = Field(description="A brief description of the goods or services provided")
-
-class InvoiceExtraction(BaseModel):
-    invoice_number: str
-    client: str
-    amount: float
-    due_date: str
-    description: Optional[str] = None
-    client_email: Optional[str] = None
-    client_phone: Optional[str] = None
-    client_address: Optional[str] = None
-    client_postal_code: Optional[str] = None
-    client_city: Optional[str] = None
-    client_vat_number: Optional[str] = None
 
 async def process_invoice_async(invoice_id: str, file_content: bytes):
     """
-    Process invoice OCR asynchronously and send results via webhook
+    Process invoice OCR asynchronously and update the database
     """
     try:
         # Convertir le PDF en images
@@ -68,61 +36,39 @@ async def process_invoice_async(invoice_id: str, file_content: bytes):
 
         # Vérifier si c'est une facture
         if not await is_invoice(text):
-            await send_ocr_result(invoice_id, error="Document is not an invoice")
+            logger.error("Document is not an invoice")
+            await update_invoice(invoice_id, {
+                "status": "OCR_FAILED",
+                "error": "Document is not an invoice"
+            })
             return
 
         # Extraire les informations avec le LLM
         extracted_data = await extract_invoice_data(text)
         if not extracted_data:
-            await send_ocr_result(invoice_id, error="Failed to extract invoice data")
+            logger.error("Failed to extract invoice data")
+            await update_invoice(invoice_id, {
+                "status": "OCR_FAILED",
+                "error": "Failed to extract invoice data"
+            })
             return
 
-        # Envoyer les résultats via webhook
-        await send_ocr_result(
-            invoice_id=invoice_id,
-            ocr_results=extracted_data.dict()
-        )
+        # Mettre à jour la facture dans la base de données
+        update_data = {
+            "status": "OCR_COMPLETED",
+            **extracted_data.dict()
+        }
+        
+        logger.debug(f"Updating invoice {invoice_id} with data: {update_data}")
+        await update_invoice(invoice_id, update_data)
+        logger.info(f"Successfully processed invoice {invoice_id}")
 
     except Exception as e:
         logger.error(f"Error processing invoice: {str(e)}")
-        await send_ocr_result(invoice_id, error=str(e))
-
-async def send_ocr_result(invoice_id: str, ocr_results: dict = None, error: str = None):
-    """
-    Send OCR results to the webhook endpoint
-    """
-    webhook_url = f"{APP_URL}/api/webhooks/ocr/result"
-    
-    if not OCR_WEBHOOK_SECRET:
-        logger.error("OCR_WEBHOOK_SECRET is not set")
-        return
-        
-    payload = {
-        "invoice_id": invoice_id,
-        "ocr_results": ocr_results,
-        "error": error
-    }
-    headers = {
-        "Content-Type": "application/json",
-        "X-Webhook-Secret": str(OCR_WEBHOOK_SECRET)  # Ensure it's a string
-    }
-
-    logger.debug(f"Sending OCR results to {webhook_url}")
-    logger.debug(f"Payload: {payload}")
-    
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(
-                webhook_url,
-                json=payload,
-                headers=headers
-            )
-            response.raise_for_status()
-            logger.info(f"Successfully sent OCR results for invoice {invoice_id}")
-        except Exception as e:
-            logger.error(f"Failed to send OCR results: {str(e)}")
-            logger.error(f"Response status: {getattr(e, 'status_code', 'unknown')}")
-            logger.error(f"Response text: {getattr(e, 'text', 'unknown')}")
+        await update_invoice(invoice_id, {
+            "status": "OCR_FAILED",
+            "error": str(e)
+        })
 
 async def is_invoice(text):
     # Utiliser le LLM pour déterminer si le texte décrit une facture
@@ -201,7 +147,7 @@ async def extract_invoice_data(text):
             logger.error(f"Missing required fields: {missing_fields}")
             return None
         
-        # Conversion de la date en datetime avant de créer l'OCRResult
+        # Conversion de la date en datetime
         try:
             parsed_data["due_date"] = datetime.strptime(parsed_data["due_date"], "%Y-%m-%d")
         except ValueError as e:

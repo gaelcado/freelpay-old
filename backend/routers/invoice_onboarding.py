@@ -23,14 +23,14 @@ class ManualInvoiceCreate(BaseModel):
     client_email: str = Field(..., description="Email du client")
     client_phone: str = Field(..., description="Téléphone du client")
     client_address: str = Field(..., description="Adresse du client")
-    client_type: str = Field(..., pattern="^(company|individual)$", description="Type de client (company ou individual)")
+    client_type: str = Field(..., description="Type de client")
     amount: float = Field(..., gt=0, description="Montant de la facture")
     due_date: datetime = Field(..., description="Date d'échéance")
     currency: str = Field(..., description="Devise de la facture")
     payment_conditions: str = Field(..., description="Conditions de paiement")
     client_siren: str = Field(..., description="Numéro SIREN du client")
     description: str = Field(..., description="Description des services ou produits")
-    language: str = Field(..., description="Langue de la facture")
+    language: str = Field(..., description="Code langue ISO à 2 lettres (ex: fr, en)")
     special_mentions: str = Field(..., description="Mentions spéciales sur la facture")
     pdf_invoice_subject: str = Field(..., description="Sujet du PDF de la facture")
     
@@ -57,7 +57,7 @@ class ManualInvoiceCreate(BaseModel):
                 "payment_conditions": "30_days",
                 "client_siren": "979617123",
                 "description": "Développement d'un site internet responsive sous Webflow",
-                "language": "fr_FR",
+                "language": "fr",
                 "special_mentions": "TVA non applicable, art. 293 B du CGI",
                 "pdf_invoice_subject": "Facture développement site web",
                 "client_postal_code": "75005",
@@ -102,7 +102,7 @@ async def upload_invoice_ocr(
             "client_type": "company",
             "client_country": "FR",
             "currency": "EUR",
-            "language": "fr_FR",
+            "language": "fr",
             "payment_conditions": "upon_receipt"
         }
         

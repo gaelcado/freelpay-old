@@ -93,7 +93,7 @@ async def create_invoice(invoice_data: dict):
         if 'currency' not in invoice_data:
             invoice_data['currency'] = 'EUR'
         if 'language' not in invoice_data:
-            invoice_data['language'] = 'fr_FR'
+            invoice_data['language'] = 'fr'
         if 'payment_conditions' not in invoice_data:
             invoice_data['payment_conditions'] = 'upon_receipt'
             
