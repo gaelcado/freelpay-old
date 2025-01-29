@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Path
 from typing import List, Optional
 from models.user import User
-from models.invoice import InvoiceCreate, Invoice, InvoiceInDB, ScoreResponse, InvoiceListResponse, InvoiceCreateResponse, PdfUrlResponse, SendInvoiceResponse, PennylaneEstimateResponse, DemoInvoiceResponse
+from models.invoice import InvoiceCreate, Invoice, InvoiceInDB, ScoreResponse, InvoiceListResponse, InvoiceCreateResponse, PdfUrlResponse, SendInvoiceResponse, PennylaneEstimateResponse, DemoInvoiceResponse, InvoiceUpdate
 from services.ocr_service import process_invoice
 from services.scoring_service import calculate_score
 from services.pennylane import create_pennylane_estimate, send_estimate_for_signature
 from services.pandadoc import send_document_for_signature
 from dependencies import get_current_user, get_optional_user
-from database.db import create_invoice, get_user_invoices, update_invoice_status, get_invoice_by_id, update_invoice_pennylane_id, update_invoice_pandadoc_id, update_invoice_score, find_user_by_id
+from database.db import create_invoice, get_user_invoices, update_invoice_status, get_invoice_by_id, update_invoice_pennylane_id, update_invoice_pandadoc_id, update_invoice_score, find_user_by_id, update_invoice
+from database.supabase_client import supabase
 from datetime import datetime, timedelta
 import logging
 import requests
@@ -16,10 +17,21 @@ import os
 PENNYLANE_API_KEY = os.getenv('PENNYLANE_API_KEY')
 PENNYLANE_API_URL = "https://app.pennylane.com/api/external/v1"
 
-router = APIRouter()
+router = APIRouter(
+    tags=["invoices"],
+    responses={404: {"description": "Not found"}},
+)
 
-@router.post("/create", response_model=InvoiceCreateResponse)
-async def create_invoice_route(invoice: InvoiceCreate, current_user: dict = Depends(get_current_user)):
+@router.post(
+    "/create",
+    response_model=InvoiceCreateResponse,
+    summary="Create a new invoice manually",
+    description="Creates a new invoice with manual data entry"
+)
+async def create_invoice_route(
+    invoice: InvoiceCreate,
+    current_user: dict = Depends(get_current_user)
+):
     score = await calculate_score(
         invoice.dict(), 
         user_siren=current_user.get('siren_number'),
@@ -43,60 +55,17 @@ async def create_invoice_route(invoice: InvoiceCreate, current_user: dict = Depe
 @router.post(
     "/upload",
     response_model=Invoice,
-    tags=["invoices"],
-    summary="Upload and process an invoice PDF",
+    summary="Upload and process an invoice PDF for authenticated users",
     description="""
-    Uploads and processes a PDF invoice, extracts data, calculates risk score,
-    and saves it to the database. Used in the invoice creation flow.
-    """,
-    responses={
-        200: {
-            "description": "Invoice processed and created successfully",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "id": "550e8400-e29b-41d4-a716-446655440000",
-                        "invoice_number": "INV-2024-001",
-                        "client": "Acme Corp",
-                        "client_email": "contact@acme.com",
-                        "client_phone": "+33123456789",
-                        "client_address": "123 Business Street",
-                        "amount": 10000.0,
-                        "due_date": "2024-12-31T23:59:59",
-                        "status": "Ongoing",
-                        "score": 0.35,
-                        "possible_financing": 6500.0
-                    }
-                }
-            }
-        },
-        400: {
-            "description": "Invalid file or processing error",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Only PDF files are allowed"}
-                }
-            }
-        }
-    }
+    Uploads and processes a PDF invoice for authenticated users.
+    Extracts data, calculates risk score, and saves it to the database.
+    For non-authenticated uploads, use /invoices/onboarding/ocr-upload instead.
+    """
 )
 async def upload_invoice(
-    file: UploadFile = File(
-        ..., 
-        description="PDF file containing the invoice",
-        example="invoice.pdf"
-    ),
+    file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user)
 ):
-    """
-    Upload and process a PDF invoice
-    
-    Parameters:
-    - file: PDF file containing the invoice
-    
-    Returns:
-    - Processed invoice with extracted data and risk score
-    """
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
     
@@ -127,86 +96,103 @@ async def upload_invoice(
     raise HTTPException(status_code=400, detail="Failed to process invoice")
 
 @router.get(
+    "/{invoice_id}",
+    response_model=Invoice,
+    summary="Get invoice details",
+    description="Retrieves detailed information about a specific invoice"
+)
+async def get_invoice(
+    invoice_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    invoice = await get_invoice_by_id(invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+        
+    # Verify ownership
+    if invoice.get('user_id') != current_user['id']:
+        raise HTTPException(status_code=403, detail="Not authorized to access this invoice")
+        
+    return invoice
+
+@router.put(
+    "/{invoice_id}",
+    response_model=Invoice,
+    summary="Update invoice information",
+    description="Updates information for a specific invoice"
+)
+async def update_invoice_route(
+    invoice_id: str,
+    invoice_data: InvoiceUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        existing_invoice = await get_invoice_by_id(invoice_id)
+        if not existing_invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+            
+        # Verify ownership
+        if existing_invoice.get('user_id') != current_user['id']:
+            raise HTTPException(status_code=403, detail="Not authorized to modify this invoice")
+        
+        # Convert Pydantic model to dict and filter out None values
+        update_data = {
+            k: v for k, v in invoice_data.model_dump().items() 
+            if v is not None
+        }
+        
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        # Prevent changing invoice ownership
+        if 'user_id' in update_data:
+            if update_data['user_id'] != current_user['id']:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot change invoice ownership"
+                )
+            # Remove user_id from update as it's already verified
+            del update_data['user_id']
+
+        updated_invoice = await update_invoice(invoice_id, update_data)
+        return updated_invoice
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error updating invoice: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while updating the invoice: {str(e)}"
+        )
+
+@router.get(
     "/list",
     response_model=List[InvoiceListResponse],
-    tags=["invoices"],
-    summary="List all invoices for the current user",
-    responses={
-        200: {
-            "description": "List of invoices",
-            "content": {
-                "application/json": {
-                    "example": [{
-                        "id": "550e8400-e29b-41d4-a716-446655440000",
-                        "invoice_number": "INV-2024-001",
-                        "client": "Acme Corp",
-                        "amount": 10000.0,
-                        "due_date": "2024-12-31T23:59:59",
-                        "status": "Draft",
-                        "score": 0.35,
-                        "possible_financing": 6500.0
-                    }]
-                }
-            }
-        }
-    }
+    summary="List all invoices",
+    description="Lists all invoices belonging to the current user"
 )
 async def list_invoices(current_user: dict = Depends(get_current_user)):
-    """Liste toutes les factures de l'utilisateur courant"""
     return await get_user_invoices(current_user['id'])
 
 @router.post(
-    "/send",
+    "/{invoice_id}/send",
     response_model=SendInvoiceResponse,
-    tags=["invoices"],
     summary="Send invoice for signature",
-    description="Sends the invoice to the client for electronic signature via PandaDoc",
-    responses={
-        200: {
-            "description": "Invoice sent successfully",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "message": "Invoice sent successfully for signature"
-                    }
-                }
-            }
-        },
-        400: {
-            "description": "Missing required information",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Client email is required to send the quote"}
-                }
-            }
-        },
-        404: {
-            "description": "Invoice not found",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Invoice not found"}
-                }
-            }
-        }
-    }
+    description="Sends the invoice to the client for electronic signature via PandaDoc"
 )
 async def send_invoice_endpoint(
-    invoice_id: str = Path(..., example="550e8400-e29b-41d4-a716-446655440000"),
+    invoice_id: str = Path(...),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Envoie une facture pour signature électronique
-    
-    Parameters:
-    - invoice_id: ID de la facture à envoyer
-    
-    Returns:
-    - Message de confirmation
-    """
     try:
         invoice = await get_invoice_by_id(invoice_id)
         if not invoice:
             raise HTTPException(status_code=404, detail="Invoice not found")
+            
+        # Verify ownership
+        if invoice.get('user_id') != current_user['id']:
+            raise HTTPException(status_code=403, detail="Not authorized to send this invoice")
             
         if not invoice.get('client_email'):
             raise HTTPException(
@@ -220,21 +206,21 @@ async def send_invoice_endpoint(
                 detail="Invoice must be created in Pennylane first"
             )
         
-        # 1. Récupérer l'URL du PDF depuis Pennylane
+        # 1. Get PDF URL from Pennylane
         pdf_response = await get_invoice_pdf_url(invoice_id, current_user)
         pdf_url = pdf_response["pdf_url"]
         
-        # 2. Envoyer le document pour signature via PandaDoc
+        # 2. Send document for signature via PandaDoc
         pandadoc_response = await send_document_for_signature(
             file_url=pdf_url,
             recipient_email=invoice['client_email'],
             recipient_name=invoice['client']
         )
         
-        # 3. Mettre à jour le statut de la facture
+        # 3. Update invoice status
         await update_invoice_status(invoice_id, current_user['id'], "Sent")
         
-        # 4. Stocker l'ID du document PandaDoc
+        # 4. Store PandaDoc document ID
         await update_invoice_pandadoc_id(invoice_id, pandadoc_response['id'])
         
         return {"message": "Invoice sent successfully for signature"}
@@ -242,8 +228,6 @@ async def send_invoice_endpoint(
     except Exception as e:
         logging.error(f"Error sending invoice: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-# In your invoice.py router
 
 @router.post(
     "/create-demo",

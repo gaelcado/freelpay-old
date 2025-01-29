@@ -1,121 +1,33 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from typing import Optional
 from models.ocr import OCRResponse, OCRResult
-from models.invoice import Invoice, InvoiceCreate
+from models.invoice import Invoice, InvoiceCreate, InvoiceUpdate
 from services.ocr_service import process_invoice
-from dependencies import get_current_user, get_optional_user
 from database.db import create_invoice, get_invoice_by_id, update_invoice
+from database.supabase_client import supabase
 import logging
 import uuid
 from datetime import datetime
-from pydantic import BaseModel, Field
-from database.supabase_client import supabase  # Utiliser le client déjà configuré
-import os
 
 router = APIRouter(
-    prefix="/onboarding",
     tags=["invoice-onboarding"],
-    responses={404: {"description": "Not found"}}
+    responses={404: {"description": "Not found"}},
+    prefix="/onboarding"
 )
 
-class InvoiceUpdate(BaseModel):
-    invoice_number: Optional[str] = Field(
-        default=None,
-        description="Numéro unique de la facture",
-        example="INV-2024-001"
-    )
-    client: Optional[str] = Field(
-        default=None,
-        description="Nom du client ou de l'entreprise",
-        example="Acme Corp"
-    )
-    client_email: Optional[str] = Field(
-        default=None,
-        description="Email du client",
-        example="contact@acme.com"
-    )
-    client_phone: Optional[str] = Field(
-        default=None,
-        description="Numéro de téléphone du client",
-        example="+33612345678"
-    )
-    client_address: Optional[str] = Field(
-        default=None,
-        description="Adresse du client",
-        example="123 Rue de Paris"
-    )
-    client_postal_code: Optional[str] = Field(
-        default=None,
-        description="Code postal du client",
-        example="75001"
-    )
-    client_city: Optional[str] = Field(
-        default=None,
-        description="Ville du client",
-        example="Paris"
-    )
-    client_country: Optional[str] = Field(
-        default=None,
-        description="Code pays du client (ISO)",
-        example="FR"
-    )
-    client_vat_number: Optional[str] = Field(
-        default=None,
-        description="Numéro de TVA du client",
-        example="FR12345678900"
-    )
-    client_siren: Optional[str] = Field(
-        default=None,
-        description="Numéro SIREN du client (9 chiffres)",
-        example="123456789"
-    )
-    amount: Optional[float] = Field(
-        default=None,
-        description="Montant de la facture",
-        example=1000.50,
-        gt=0
-    )
-    currency: Optional[str] = Field(
-        default=None,
-        description="Devise de la facture",
-        example="EUR"
-    )
-    due_date: Optional[datetime] = Field(
-        default=None,
-        description="Date d'échéance de la facture",
-        example="2024-12-31T23:59:59"
-    )
-    description: Optional[str] = Field(
-        default=None,
-        description="Description des biens ou services",
-        example="Prestations de conseil"
-    )
-    user_id: Optional[str] = Field(
-        default=None,
-        description="ID de l'utilisateur propriétaire de la facture",
-        example="550e8400-e29b-41d4-a716-446655440000"
-    )
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "invoice_number": "INV-2024-001",
-                "client": "Acme Corp",
-                "client_email": "contact@acme.com",
-                "amount": 1000.50,
-                "currency": "EUR",
-                "due_date": "2024-12-31T23:59:59",
-                "user_id": "550e8400-e29b-41d4-a716-446655440000"
-            }
-        }
-
-@router.post("/upload", response_model=OCRResponse)
-async def upload_invoice(file: UploadFile = File(...)):
+@router.post(
+    "/upload",
+    response_model=OCRResponse,
+    summary="Upload and process an invoice without authentication",
+    description="""
+    Uploads and processes a PDF invoice without requiring authentication.
+    This endpoint is part of the onboarding flow and:
+    1. Validates the PDF file
+    2. Processes OCR to extract data
+    3. Creates an invoice record without user association
     """
-    1. Validate the PDF file
-    2. Process OCR to extract data
-    3. Create the invoice with the extracted data
-    """
+)
+async def upload_invoice_ocr(file: UploadFile = File(...)):
     try:
         if not file.content_type == "application/pdf":
             raise HTTPException(status_code=400, detail="Only PDF files are accepted")
@@ -136,6 +48,10 @@ async def upload_invoice(file: UploadFile = File(...)):
                 detail=f"Missing required fields: {', '.join(missing_fields)}"
             )
             
+        # Vérifier qu'aucun user_id n'est fourni dans les données OCR
+        if 'user_id' in ocr_result:
+            raise HTTPException(status_code=400, detail="Cannot set user_id during initial OCR upload")
+            
         invoice_data = {
             "id": str(uuid.uuid4()),
             "status": "draft",
@@ -143,6 +59,7 @@ async def upload_invoice(file: UploadFile = File(...)):
             "client_type": "company",
             "client_country": "FR",
             "currency": "EUR",
+            "user_id": None,  # Explicitly set to None for onboarding
             **ocr_result
         }
         
@@ -160,28 +77,56 @@ async def upload_invoice(file: UploadFile = File(...)):
         logging.error(f"Upload error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{invoice_id}", response_model=Invoice)
+@router.get(
+    "/{invoice_id}",
+    response_model=Invoice,
+    summary="Get invoice information during onboarding",
+    description="Retrieves information for an invoice that is not yet associated with a user"
+)
 async def get_invoice_info(invoice_id: str):
-    """
-    Récupère toutes les informations d'une facture, y compris les résultats OCR
-    """
-    invoice = await get_invoice_by_id(invoice_id)
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    return invoice
+    try:
+        invoice = await get_invoice_by_id(invoice_id)
+        if not invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+            
+        # Verify this is an onboarding invoice (no user_id)
+        if invoice.get('user_id'):
+            raise HTTPException(
+                status_code=400,
+                detail="This invoice is already associated with a user"
+            )
+            
+        return invoice
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error getting invoice: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.put("/{invoice_id}", response_model=Invoice)
+@router.put(
+    "/{invoice_id}",
+    response_model=Invoice,
+    summary="Update invoice information during onboarding",
+    description="""
+    Updates invoice information during the onboarding process.
+    Can also be used to associate the invoice with a user, completing the onboarding.
+    """
+)
 async def update_invoice_info(
     invoice_id: str,
     invoice_data: InvoiceUpdate
 ):
-    """
-    Met à jour les informations d'une facture pendant l'onboarding
-    """
     try:
         existing_invoice = await get_invoice_by_id(invoice_id)
         if not existing_invoice:
             raise HTTPException(status_code=404, detail="Invoice not found")
+            
+        # Verify this is an onboarding invoice (no user_id)
+        if existing_invoice.get('user_id'):
+            raise HTTPException(
+                status_code=400,
+                detail="This invoice is already associated with a user"
+            )
         
         # Convertir le modèle Pydantic en dict et filtrer les None
         update_data = {
@@ -192,20 +137,40 @@ async def update_invoice_info(
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")
         
-        # Vérifier si user_id est fourni et valide
+        # Si un user_id est fourni dans la mise à jour
         if 'user_id' in update_data:
-            # Vérifier si l'utilisateur existe dans la base de données
-            user_response = supabase.table('users').select('*').eq('id', update_data['user_id']).execute()
-            if not user_response.data:
-                raise HTTPException(status_code=400, detail="Invalid user_id - User not found")
-            
-            # Si l'invoice a déjà un user_id différent, empêcher la mise à jour
-            if existing_invoice.get('user_id') and existing_invoice['user_id'] != update_data['user_id']:
-                raise HTTPException(status_code=400, detail="Invoice already associated with a different user")
-        
+            try:
+                # Convertir en string si c'est un UUID
+                update_data['user_id'] = str(update_data['user_id'])
+                
+                # Vérifier si l'utilisateur existe
+                user_response = supabase.table('users').select('*').eq('id', update_data['user_id']).execute()
+                if not user_response.data:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"User not found with ID: {update_data['user_id']}"
+                    )
+                    
+                # Vérifier que c'est la première association d'utilisateur
+                if existing_invoice.get('user_id'):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invoice is already associated with a user"
+                    )
+            except ValueError as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid UUID format for user_id: {update_data['user_id']}"
+                )
+
         updated_invoice = await update_invoice(invoice_id, update_data)
         return updated_invoice
         
+    except HTTPException:
+        raise
     except Exception as e:
         logging.error(f"Error updating invoice: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while updating the invoice: {str(e)}"
+        ) 

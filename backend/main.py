@@ -93,7 +93,7 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(user.router, prefix="/users", tags=["users"])
 app.include_router(invoice.router, prefix="/invoices", tags=["invoices"])
 app.include_router(siren.router, prefix="/siren", tags=["siren"])
-app.include_router(invoice_onboarding.router, prefix="/invoices/onboarding", tags=["invoice-onboarding"])
+app.include_router(invoice_onboarding.router, prefix="/invoices", tags=["invoice-onboarding"])
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -68,6 +68,42 @@ class InvoiceInDB(InvoiceBase):
     pdf_invoice_subject: Optional[str] = None
     pdf_invoice_free_text: Optional[str] = None
 
+class InvoiceUpdate(InvoiceBase):
+    invoice_number: Optional[str] = None
+    client: Optional[str] = None
+    client_email: Optional[str] = None
+    client_phone: Optional[str] = None
+    client_address: Optional[str] = None
+    client_postal_code: Optional[str] = None
+    client_city: Optional[str] = None
+    client_country: Optional[str] = "FR"
+    client_vat_number: Optional[str] = None
+    client_type: Optional[str] = None
+    client_siren: Optional[str] = None
+    amount: Optional[float] = None
+    currency: Optional[str] = None
+    due_date: Optional[datetime] = None
+    description: Optional[str] = None
+    user_id: Optional[str] = None
+    payment_conditions: Optional[str] = None
+    language: Optional[str] = None
+    line_items: Optional[List[dict]] = None
+    special_mentions: Optional[str] = None
+    pdf_invoice_subject: Optional[str] = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "invoice_number": "INV-2024-001",
+                "client": "Acme Corp",
+                "client_email": "contact@acme.com",
+                "amount": 1000.50,
+                "currency": "EUR",
+                "due_date": "2024-12-31T23:59:59",
+                "user_id": "550e8400-e29b-41d4-a716-446655440000"
+            }
+        }
+
 class Invoice(InvoiceBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     invoice_number: str
@@ -95,6 +131,7 @@ class Invoice(InvoiceBase):
     special_mentions: Optional[str] = None
     pdf_invoice_subject: Optional[str] = None
     client_siren: Optional[str] = None
+    user_id: Optional[str] = None
 
 class ScoreDetails(BaseModel):
     siren_score: float = Field(

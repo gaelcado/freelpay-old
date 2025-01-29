@@ -67,6 +67,8 @@ async def update_user_profile(user_id: str, update_data: dict):
 
 async def create_invoice(invoice_data: dict):
     try:
+        logging.info(f"Creating invoice with data: {invoice_data}")
+        
         # Convertir les dates en chaînes ISO
         if 'created_date' in invoice_data:
             invoice_data['created_date'] = invoice_data['created_date'].isoformat()
@@ -79,16 +81,38 @@ async def create_invoice(invoice_data: dict):
         if 'id' not in invoice_data:
             invoice_data['id'] = str(uuid.uuid4())
             
+        # Ensure line_items is an array if not present
+        if 'line_items' not in invoice_data:
+            invoice_data['line_items'] = []
+            
+        # Set default values for required fields if not present
+        if 'client_type' not in invoice_data:
+            invoice_data['client_type'] = 'company'
+        if 'client_country' not in invoice_data:
+            invoice_data['client_country'] = 'FR'
+        if 'currency' not in invoice_data:
+            invoice_data['currency'] = 'EUR'
+        if 'language' not in invoice_data:
+            invoice_data['language'] = 'fr_FR'
+        if 'payment_conditions' not in invoice_data:
+            invoice_data['payment_conditions'] = 'upon_receipt'
+            
+        logging.info(f"Inserting invoice into database with final data: {invoice_data}")
         response = supabase.table('invoices').insert(invoice_data).execute()
         
         if not response.data:
+            logging.error("No data returned from insert operation")
             raise HTTPException(status_code=500, detail="Failed to create invoice")
             
+        logging.info(f"Successfully created invoice with ID: {response.data[0]['id']}")
         return response.data[0]
         
     except Exception as e:
         logging.error(f"Error creating invoice: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create invoice: {str(e)}"
+        )
 
 async def get_user_invoices(user_id: str):
     try:
@@ -172,8 +196,22 @@ async def create_user(user_data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 async def get_invoice_by_id(invoice_id: str):
-    response = supabase.table('invoices').select('*').eq('id', invoice_id).execute()
-    return response.data[0] if response.data else None
+    try:
+        logging.info(f"Fetching invoice with ID: {invoice_id}")
+        response = supabase.table('invoices').select('*').eq('id', invoice_id).execute()
+        
+        if not response.data:
+            logging.warning(f"No invoice found with ID: {invoice_id}")
+            return None
+            
+        logging.info(f"Successfully retrieved invoice: {response.data[0]}")
+        return response.data[0]
+    except Exception as e:
+        logging.error(f"Error fetching invoice {invoice_id}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database error while fetching invoice: {str(e)}"
+        )
 
 async def update_invoice_pennylane_id(invoice_id: str, pennylane_id: str):
     response = supabase.table('invoices')\
