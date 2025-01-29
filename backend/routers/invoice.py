@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Path
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Path, BackgroundTasks
 from typing import List, Optional
 from models.user import User
-from models.invoice import InvoiceCreate, Invoice, InvoiceInDB, ScoreResponse, InvoiceListResponse, InvoiceCreateResponse, PdfUrlResponse, SendInvoiceResponse, PennylaneEstimateResponse, DemoInvoiceResponse, InvoiceUpdate
-from services.ocr_service import process_invoice
+from models.invoice import InvoiceCreate, Invoice, InvoiceInDB, ScoreResponse, InvoiceListResponse, InvoiceCreateResponse, PdfUrlResponse, SendInvoiceResponse, PennylaneEstimateResponse, DemoInvoiceResponse, InvoiceUpdate, OCRStatus
+from services.ocr_service import process_invoice_async
 from services.scoring_service import calculate_score
 from services.pennylane import create_pennylane_estimate, send_estimate_for_signature
 from services.pandadoc import send_document_for_signature
@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import logging
 import requests
 import os
+import uuid
 
 PENNYLANE_API_KEY = os.getenv('PENNYLANE_API_KEY')
 PENNYLANE_API_URL = "https://app.pennylane.com/api/external/v1"
@@ -21,6 +22,23 @@ router = APIRouter(
     tags=["invoices"],
     responses={404: {"description": "Not found"}},
 )
+
+async def save_file(file: UploadFile) -> str:
+    """
+    Save uploaded file to disk and return the file path
+    """
+    upload_dir = os.path.join("uploads", "invoices")
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    file_extension = os.path.splitext(file.filename)[1]
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    file_path = os.path.join(upload_dir, unique_filename)
+    
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+    
+    return file_path
 
 @router.post(
     "/create",
@@ -64,36 +82,48 @@ async def create_invoice_route(
 )
 async def upload_invoice(
     file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None
 ):
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
     
-    invoice_data = await process_invoice(file)
+    # Create invoice with pending status
+    invoice_id = str(uuid.uuid4())
+    temp_invoice_number = f"TEMP-{invoice_id[:8]}"
     
-    if "error" in invoice_data:
-        raise HTTPException(status_code=400, detail=invoice_data["error"])
+    invoice_data = {
+        "id": invoice_id,
+        "user_id": current_user['id'],
+        "status": "OCR_PENDING",
+        "created_date": datetime.now(),
+        "invoice_number": temp_invoice_number,
+        "client": "Pending OCR",
+        "amount": 0,
+        "due_date": datetime.now() + timedelta(days=30),  # Valeur temporaire
+        "description": "Processing invoice...",
+        "client_type": "company",
+        "client_country": "FR",
+        "currency": "EUR",
+        "language": "fr_FR",
+        "payment_conditions": "upon_receipt"
+    }
     
-    score = await calculate_score(
-        invoice_data,
-        user_siren=current_user.get('siren_number'),
-        is_authenticated=True
+    # Create invoice record
+    invoice = await create_invoice(invoice_data)
+    
+    if not invoice:
+        raise HTTPException(status_code=500, detail="Failed to create invoice record")
+    
+    # Start OCR processing in background
+    file_content = await file.read()
+    background_tasks.add_task(
+        process_invoice_async,
+        invoice_id,
+        file_content
     )
-    possible_financing = invoice_data["amount"] * (1 - score)
     
-    invoice_db = InvoiceInDB(
-        **invoice_data,
-        user_id=current_user['id'],
-        created_date=datetime.now(),
-        status="Ongoing",
-        score=score,
-        possible_financing=possible_financing
-    )
-    
-    result = await create_invoice(invoice_db.dict())
-    if result:
-        return Invoice(**result)
-    raise HTTPException(status_code=400, detail="Failed to process invoice")
+    return invoice
 
 @router.get(
     "/{invoice_id}",
@@ -115,17 +145,79 @@ async def get_invoice(
         
     return invoice
 
-@router.put(
+@router.patch(
     "/{invoice_id}",
     response_model=Invoice,
     summary="Update invoice information",
-    description="Updates information for a specific invoice"
+    description="""
+    Updates information for a specific invoice.
+    This endpoint supports partial updates, meaning you only need to send the fields you want to update.
+    
+    The user must be the owner of the invoice to update it.
+    """,
+    responses={
+        200: {
+            "description": "Invoice updated successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": "550e8400-e29b-41d4-a716-446655440000",
+                        "invoice_number": "INV-2024-001",
+                        "client": "Acme Corp",
+                        "amount": 1000.50,
+                        "status": "OCR_COMPLETED",
+                        "user_id": "123e4567-e89b-12d3-a456-426614174000"
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid update data",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "No fields to update"}
+                }
+            }
+        },
+        403: {
+            "description": "Not authorized",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Not authorized to modify this invoice"}
+                }
+            }
+        },
+        404: {
+            "description": "Invoice not found",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Invoice not found"}
+                }
+            }
+        }
+    }
 )
 async def update_invoice_route(
     invoice_id: str,
     invoice_data: InvoiceUpdate,
     current_user: dict = Depends(get_current_user)
 ):
+    """
+    Met à jour partiellement une facture existante
+    
+    Parameters:
+    - invoice_id: ID de la facture à mettre à jour
+    - invoice_data: Données partielles de mise à jour
+    - current_user: Utilisateur authentifié (injecté par la dépendance)
+    
+    Returns:
+    - La facture mise à jour
+    
+    Raises:
+    - 404: Facture non trouvée
+    - 403: Non autorisé à modifier cette facture
+    - 400: Données de mise à jour invalides
+    """
     try:
         existing_invoice = await get_invoice_by_id(invoice_id)
         if not existing_invoice:
@@ -330,7 +422,8 @@ async def upload_demo_invoice(
     file: UploadFile = File(
         ...,
         description="PDF file containing the invoice",
-    )
+    ),
+    background_tasks: BackgroundTasks = None
 ):
     """
     Upload and process a demo invoice from PDF
@@ -344,27 +437,35 @@ async def upload_demo_invoice(
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
     
-    invoice_data = await process_invoice(file)
+    # Create a temporary invoice for demo
+    invoice_id = str(uuid.uuid4())
+    invoice_data = {
+        "id": invoice_id,
+        "status": "Demo",
+        "created_date": datetime.now(),
+        "user_id": None
+    }
     
-    if "error" in invoice_data:
-        raise HTTPException(status_code=400, detail=invoice_data["error"])
-    
-    score = await calculate_score(invoice_data)
-    possible_financing = invoice_data["amount"] * (1 - score)
-    
-    invoice = DemoInvoiceResponse(
-        invoice_number=invoice_data["invoice_number"],
-        client=invoice_data["client"],
-        amount=invoice_data["amount"],
-        due_date=invoice_data["due_date"],
-        description=invoice_data.get("description"),
-        created_date=datetime.now(),
-        status="Demo",
-        score=score,
-        possible_financing=possible_financing
+    # Process OCR
+    file_content = await file.read()
+    background_tasks.add_task(
+        process_invoice_async,
+        invoice_id,
+        file_content
     )
     
-    return invoice
+    # Return demo response
+    return DemoInvoiceResponse(
+        invoice_number="DEMO-" + invoice_id[:8],
+        client="Demo Company",
+        amount=0.0,  # Will be updated after OCR
+        due_date=datetime.now() + timedelta(days=30),
+        description="Processing demo invoice...",
+        created_date=datetime.now(),
+        status="Demo",
+        score=0.0,
+        possible_financing=0.0
+    )
 
 @router.post(
     "/{invoice_id}/create-pennylane-estimate",

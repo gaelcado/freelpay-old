@@ -9,6 +9,11 @@ class ClientType(str, Enum):
     COMPANY = "company"
     INDIVIDUAL = "individual"
 
+class OCRStatus(str, Enum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
 class InvoiceBase(BaseModel):
     class Config:
         json_encoders = {
@@ -67,6 +72,8 @@ class InvoiceInDB(InvoiceBase):
     special_mentions: Optional[str] = None
     pdf_invoice_subject: Optional[str] = None
     pdf_invoice_free_text: Optional[str] = None
+    ocr_status: OCRStatus = Field(default=OCRStatus.PENDING)
+    original_file_path: Optional[str] = None
 
 class InvoiceUpdate(InvoiceBase):
     invoice_number: Optional[str] = None

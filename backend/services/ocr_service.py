@@ -13,13 +13,17 @@ from typing import Optional
 import json
 from openai import OpenAI
 from models.ocr import OCRResult
+import httpx
+import asyncio
 
 # Configurer le logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Récupérer la clé API OpenAI
+# Récupérer les variables d'environnement
 openai_api_key = os.getenv("OPENAI_API_KEY")
+APP_URL = os.getenv("APP_URL", "http://localhost:8000")
+OCR_WEBHOOK_SECRET = os.getenv("OCR_WEBHOOK_SECRET")
 
 class InvoiceData(BaseModel):
     invoice_number: str = Field(description="The unique identifier for the invoice")
@@ -49,10 +53,13 @@ class InvoiceExtraction(BaseModel):
     client_city: Optional[str] = None
     client_vat_number: Optional[str] = None
 
-async def process_invoice(file):
+async def process_invoice_async(invoice_id: str, file_content: bytes):
+    """
+    Process invoice OCR asynchronously and send results via webhook
+    """
     try:
-        content = await file.read()
-        images = convert_from_bytes(content)
+        # Convertir le PDF en images
+        images = convert_from_bytes(file_content)
         text = ""
         for image in images:
             text += pytesseract.image_to_string(image)
@@ -61,34 +68,61 @@ async def process_invoice(file):
 
         # Vérifier si c'est une facture
         if not await is_invoice(text):
-            return {
-                "error": "Document is not an invoice"
-            }
-        
+            await send_ocr_result(invoice_id, error="Document is not an invoice")
+            return
+
         # Extraire les informations avec le LLM
         extracted_data = await extract_invoice_data(text)
         if not extracted_data:
-            return {"error": "Failed to extract invoice data"}
-        
-        # Convertir l'OCRResult en dictionnaire avec les champs requis
-        return {
-            "invoice_number": extracted_data.invoice_number,
-            "client": extracted_data.client,
-            "amount": extracted_data.amount,
-            "due_date": extracted_data.due_date,
-            "description": extracted_data.description,
-            "client_email": extracted_data.client_email,
-            "client_phone": extracted_data.client_phone,
-            "client_address": extracted_data.client_address,
-            "client_postal_code": extracted_data.client_postal_code,
-            "client_city": extracted_data.client_city,
-            "client_vat_number": extracted_data.client_vat_number,
-            "client_siren": extracted_data.client_siren
-        }
-        
+            await send_ocr_result(invoice_id, error="Failed to extract invoice data")
+            return
+
+        # Envoyer les résultats via webhook
+        await send_ocr_result(
+            invoice_id=invoice_id,
+            ocr_results=extracted_data.dict()
+        )
+
     except Exception as e:
         logger.error(f"Error processing invoice: {str(e)}")
-        return {"error": str(e)}
+        await send_ocr_result(invoice_id, error=str(e))
+
+async def send_ocr_result(invoice_id: str, ocr_results: dict = None, error: str = None):
+    """
+    Send OCR results to the webhook endpoint
+    """
+    webhook_url = f"{APP_URL}/api/webhooks/ocr/result"
+    
+    if not OCR_WEBHOOK_SECRET:
+        logger.error("OCR_WEBHOOK_SECRET is not set")
+        return
+        
+    payload = {
+        "invoice_id": invoice_id,
+        "ocr_results": ocr_results,
+        "error": error
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "X-Webhook-Secret": str(OCR_WEBHOOK_SECRET)  # Ensure it's a string
+    }
+
+    logger.debug(f"Sending OCR results to {webhook_url}")
+    logger.debug(f"Payload: {payload}")
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(
+                webhook_url,
+                json=payload,
+                headers=headers
+            )
+            response.raise_for_status()
+            logger.info(f"Successfully sent OCR results for invoice {invoice_id}")
+        except Exception as e:
+            logger.error(f"Failed to send OCR results: {str(e)}")
+            logger.error(f"Response status: {getattr(e, 'status_code', 'unknown')}")
+            logger.error(f"Response text: {getattr(e, 'text', 'unknown')}")
 
 async def is_invoice(text):
     # Utiliser le LLM pour déterminer si le texte décrit une facture

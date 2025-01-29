@@ -1,13 +1,13 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, BackgroundTasks
 from typing import Optional
 from models.ocr import OCRResponse, OCRResult
-from models.invoice import Invoice, InvoiceCreate, InvoiceUpdate
-from services.ocr_service import process_invoice
+from models.invoice import Invoice, InvoiceCreate, InvoiceUpdate, OCRStatus
+from services.ocr_service import process_invoice_async
 from database.db import create_invoice, get_invoice_by_id, update_invoice
 from database.supabase_client import supabase
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 router = APIRouter(
     tags=["invoice-onboarding"],
@@ -23,52 +23,56 @@ router = APIRouter(
     Uploads and processes a PDF invoice without requiring authentication.
     This endpoint is part of the onboarding flow and:
     1. Validates the PDF file
-    2. Processes OCR to extract data
-    3. Creates an invoice record without user association
+    2. Creates a pending invoice record
+    3. Starts asynchronous OCR processing
     """
 )
-async def upload_invoice_ocr(file: UploadFile = File(...)):
+async def upload_invoice_ocr(
+    file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = None
+):
     try:
         if not file.content_type == "application/pdf":
             raise HTTPException(status_code=400, detail="Only PDF files are accepted")
             
-        ocr_result = await process_invoice(file)
+        # Create invoice with pending status
+        invoice_id = str(uuid.uuid4())
+        temp_invoice_number = f"TEMP-{invoice_id[:8]}"
         
-        if not ocr_result or "error" in ocr_result:
-            error_msg = ocr_result.get("error", "Failed to extract invoice data") if ocr_result else "Failed to extract invoice data"
-            raise HTTPException(status_code=400, detail=error_msg)
-            
-        # Vérifier que nous avons les champs requis
-        required_fields = ["invoice_number", "client", "amount", "due_date"]
-        missing_fields = [field for field in required_fields if field not in ocr_result]
-        
-        if missing_fields:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Missing required fields: {', '.join(missing_fields)}"
-            )
-            
-        # Vérifier qu'aucun user_id n'est fourni dans les données OCR
-        if 'user_id' in ocr_result:
-            raise HTTPException(status_code=400, detail="Cannot set user_id during initial OCR upload")
-            
         invoice_data = {
-            "id": str(uuid.uuid4()),
-            "status": "draft",
+            "id": invoice_id,
+            "status": "OCR_PENDING",
             "created_date": datetime.now(),
+            "user_id": None,  # Will be set after OCR and user registration
+            "invoice_number": temp_invoice_number,
+            "client": "Pending OCR",
+            "amount": 0,
+            "due_date": datetime.now() + timedelta(days=30),  # Valeur temporaire
+            "description": "Processing invoice...",
             "client_type": "company",
             "client_country": "FR",
             "currency": "EUR",
-            "user_id": None,  # Explicitly set to None for onboarding
-            **ocr_result
+            "language": "fr_FR",
+            "payment_conditions": "upon_receipt"
         }
         
+        # Create invoice record
         invoice = await create_invoice(invoice_data)
         
+        if not invoice:
+            raise HTTPException(status_code=500, detail="Failed to create invoice record")
+        
+        # Start OCR processing in background
+        file_content = await file.read()
+        background_tasks.add_task(
+            process_invoice_async,
+            invoice_id,
+            file_content
+        )
+        
         return OCRResponse(
-            invoice_id=invoice["id"],
-            status="draft",
-            ocr_results=OCRResult(**ocr_result)
+            invoice_id=invoice_id,
+            status="processing"
         )
         
     except HTTPException:
@@ -103,19 +107,63 @@ async def get_invoice_info(invoice_id: str):
         logging.error(f"Error getting invoice: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.put(
+@router.patch(
     "/{invoice_id}",
     response_model=Invoice,
     summary="Update invoice information during onboarding",
     description="""
     Updates invoice information during the onboarding process.
     Can also be used to associate the invoice with a user, completing the onboarding.
-    """
+    
+    This endpoint supports partial updates, meaning you only need to send the fields you want to update.
+    """,
+    responses={
+        200: {
+            "description": "Invoice updated successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": "550e8400-e29b-41d4-a716-446655440000",
+                        "invoice_number": "INV-2024-001",
+                        "client": "Acme Corp",
+                        "amount": 1000.50,
+                        "status": "OCR_COMPLETED"
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid update data or invoice already associated with a user",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Invoice is already associated with a user"}
+                }
+            }
+        },
+        404: {
+            "description": "Invoice not found",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Invoice not found"}
+                }
+            }
+        }
+    }
 )
 async def update_invoice_info(
     invoice_id: str,
     invoice_data: InvoiceUpdate
 ):
+    """
+    Met à jour partiellement les informations d'une facture pendant l'onboarding
+    
+    Parameters:
+    - invoice_id: ID de la facture à mettre à jour
+    - invoice_data: Données partielles de mise à jour
+    
+    Returns:
+    - La facture mise à jour
+    """
     try:
         existing_invoice = await get_invoice_by_id(invoice_id)
         if not existing_invoice:
