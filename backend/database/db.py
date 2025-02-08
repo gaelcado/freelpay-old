@@ -69,13 +69,15 @@ async def create_invoice(invoice_data: dict):
     try:
         logging.info(f"Creating invoice with data: {invoice_data}")
         
-        # Convertir les dates en chaînes ISO
-        if 'created_date' in invoice_data:
-            invoice_data['created_date'] = invoice_data['created_date'].isoformat()
-        if 'due_date' in invoice_data:
-            invoice_data['due_date'] = invoice_data['due_date'].isoformat()
+        # Pour les dates, on les laisse au format PostgreSQL timestamptz
+        # Supabase s'occupera de la conversion
+        if 'created_date' in invoice_data and isinstance(invoice_data['created_date'], datetime):
+            invoice_data['created_date'] = invoice_data['created_date'].strftime('%Y-%m-%d %H:%M:%S%z')
+        if 'due_date' in invoice_data and isinstance(invoice_data['due_date'], datetime):
+            invoice_data['due_date'] = invoice_data['due_date'].strftime('%Y-%m-%d %H:%M:%S%z')
         if 'financing_date' in invoice_data and invoice_data['financing_date']:
-            invoice_data['financing_date'] = invoice_data['financing_date'].isoformat()
+            if isinstance(invoice_data['financing_date'], datetime):
+                invoice_data['financing_date'] = invoice_data['financing_date'].strftime('%Y-%m-%d %H:%M:%S%z')
         
         # Ne pas regénérer l'ID s'il existe déjà
         if 'id' not in invoice_data:
@@ -121,15 +123,21 @@ async def get_user_invoices(user_id: str):
             .eq('user_id', user_id)\
             .execute()
             
-        # Convert date strings to datetime objects if needed
         invoices = response.data if response.data else []
         for invoice in invoices:
             for date_field in ['created_date', 'due_date', 'financing_date']:
                 if invoice.get(date_field):
                     try:
+                        # Pour les timestamps PostgreSQL, on les laisse tels quels
+                        # car ils sont déjà au bon format pour JavaScript
                         if isinstance(invoice[date_field], str):
-                            invoice[date_field] = datetime.fromisoformat(invoice[date_field].replace('Z', '+00:00'))
-                    except (ValueError, TypeError):
+                            # Assurons-nous que le format est cohérent
+                            if 'T' not in invoice[date_field]:
+                                # Si c'est un format simple comme '2024-02-13 00:00:00+00'
+                                dt = datetime.strptime(invoice[date_field], '%Y-%m-%d %H:%M:%S%z')
+                                invoice[date_field] = dt.isoformat()
+                    except (ValueError, TypeError) as e:
+                        logging.error(f"Error parsing date {date_field}: {e}")
                         invoice[date_field] = None
                         
         return invoices

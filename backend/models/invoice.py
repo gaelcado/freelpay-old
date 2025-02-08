@@ -1,9 +1,11 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 from pydantic.json import timedelta_isoformat
 from enum import Enum
+from pydantic import validator
+import logging
 
 class ClientType(str, Enum):
     COMPANY = "company"
@@ -17,8 +19,28 @@ class OCRStatus(str, Enum):
 class InvoiceBase(BaseModel):
     class Config:
         json_encoders = {
-            datetime: lambda dt: dt.isoformat()
+            datetime: lambda dt: dt.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S%z')
         }
+
+    @validator('created_date', 'due_date', 'financing_date', pre=True)
+    def parse_datetime(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value
+        try:
+            if isinstance(value, str):
+                if '+' in value:
+                    # Format PostgreSQL timestamptz
+                    return datetime.strptime(value, '%Y-%m-%d %H:%M:%S%z')
+                else:
+                    # Format sans timezone
+                    dt = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
+                    return dt.replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError) as e:
+            logging.error(f"Date parsing error: {e}")
+            raise ValueError(f'Invalid datetime format: {value}')
+        return value
 
 class InvoiceCreate(InvoiceBase):
     invoice_number: str
