@@ -17,6 +17,11 @@ class OCRStatus(str, Enum):
     FAILED = "failed"
 
 class InvoiceBase(BaseModel):
+    # Déclarer les champs de date d'abord
+    created_date: Optional[datetime] = None
+    due_date: Optional[datetime] = None
+    financing_date: Optional[datetime] = None
+
     class Config:
         json_encoders = {
             datetime: lambda dt: dt.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S%z')
