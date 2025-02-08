@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useTranslation } from '@/hooks/useTranslation'
 import { useToast } from "@/components/ui/use-toast"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://freelpay.com/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://app.freelpay.com/api";
 console.log('API_URL', API_URL)
 
 type Invoice = {

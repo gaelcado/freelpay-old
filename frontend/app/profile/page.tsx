@@ -13,7 +13,7 @@ import { useTranslation } from '@/hooks/useTranslation'
 import { validateSiren, CompanyInfo } from '@/lib/sirenApi'
 import { getStatusText, getStaffCategory } from '@/lib/utils/companyUtils'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://freelpay.com'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://app.freelpay.com'
 console.log('API_URL', API_URL)
 
 interface OriginalData {

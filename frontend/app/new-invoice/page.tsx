@@ -16,7 +16,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslation } from '@/hooks/useTranslation'
 import { AxiosError } from 'axios'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://freelpay.com/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://app.freelpay.com/api";
 console.log('API_URL', API_URL)
 
 interface CreatedInvoice {

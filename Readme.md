@@ -23,7 +23,7 @@ A full-stack application for freelancers to manage invoices and get paid instant
 
 #### Frontend (.env)
 
-- `NEXT_PUBLIC_API_URL`= http://localhost:8000 or https://freelpay.com/api
+- `NEXT_PUBLIC_API_URL`= http://localhost:8000 or https://app.freelpay.com/api
 - `NEXT_PUBLIC_SUPABASE_URL`= your_supabase_url
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`= your_supabase_anon_key
 
@@ -38,9 +38,9 @@ A full-stack application for freelancers to manage invoices and get paid instant
 - `SUPABASE_ANON_KEY` = your_supabase_anon_key
 - `SUPABASE_SERVICE_KEY` = your_supabase_service_key
 - `SUPABASE_POSTGRES_URI` = your_supabase_postgres_uri
-- `FRONTEND_URL` = http://localhost:3000 or https://freelpay.com
+- `FRONTEND_URL` = http://localhost:3000 or https://app.freelpay.com
 - `SIREN_API_KEY` = your_siren_api_key
-- `APP_URL` = http://localhost:8000 or https://freelpay.com/api
+- `APP_URL` = http://localhost:8000 or https://app.freelpay.com/api
 - `PENNYLANE_API_KEY` = your_pennylane_api_key
 - `PANDADOC_API_KEY` = your_pandadoc_api_key
 

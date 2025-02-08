@@ -27,7 +27,7 @@ load_dotenv()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Setup
-    app_url = os.getenv('APP_URL', 'https://freelpay.com/api')
+    app_url = os.getenv('APP_URL', 'https://app.freelpay.com/api')
     if app_url:
         await setup_pandadoc_webhook(app_url)
     yield
@@ -77,6 +77,7 @@ app.add_middleware(
         "http://frontend:3000", 
         "https://freelpay-nextjs-pm2fo.ondigitalocean.app",
         "https://freelpay.com",
+        "https://app.freelpay.com",
         "https://app.wized.com"
     ],
     allow_credentials=True,
