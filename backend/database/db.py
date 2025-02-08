@@ -120,7 +120,19 @@ async def get_user_invoices(user_id: str):
             .select('*')\
             .eq('user_id', user_id)\
             .execute()
-        return response.data if response.data else []
+            
+        # Convert date strings to datetime objects if needed
+        invoices = response.data if response.data else []
+        for invoice in invoices:
+            for date_field in ['created_date', 'due_date', 'financing_date']:
+                if invoice.get(date_field):
+                    try:
+                        if isinstance(invoice[date_field], str):
+                            invoice[date_field] = datetime.fromisoformat(invoice[date_field].replace('Z', '+00:00'))
+                    except (ValueError, TypeError):
+                        invoice[date_field] = None
+                        
+        return invoices
     except Exception as e:
         logging.error(f"Database error: {str(e)}")
         raise HTTPException(status_code=500, detail="Database error")

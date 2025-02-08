@@ -132,7 +132,18 @@ async def upload_invoice(
     description="Lists all invoices belonging to the current user"
 )
 async def list_invoices(current_user: dict = Depends(get_current_user)):
-    return await get_user_invoices(current_user['id'])
+    invoices = await get_user_invoices(current_user['id'])
+    
+    # Format dates as ISO strings
+    for invoice in invoices:
+        if 'created_date' in invoice:
+            invoice['created_date'] = invoice['created_date'].isoformat() if invoice['created_date'] else None
+        if 'due_date' in invoice:
+            invoice['due_date'] = invoice['due_date'].isoformat() if invoice['due_date'] else None
+        if 'financing_date' in invoice:
+            invoice['financing_date'] = invoice['financing_date'].isoformat() if invoice['financing_date'] else None
+    
+    return invoices
 
 @router.get(
     "/{invoice_id}",

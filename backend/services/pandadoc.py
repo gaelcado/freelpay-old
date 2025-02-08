@@ -126,22 +126,20 @@ async def send_document_for_signature(file_url: str, recipient_email: str, recip
 
 async def setup_pandadoc_webhook(app_url: str):
     try:
-        # S'assurer que l'URL se termine par /webhook/pandadoc
-        webhook_url = app_url.rstrip('/') + '/webhook/pandadoc'
+        webhook_url = f"{app_url}/webhook/pandadoc"
+        logging.info(f"Setting up webhook with URL: {webhook_url}")
+        
+        # Add required triggers
+        webhook_data = {
+            "name": "Freelpay Document Webhook",
+            "url": webhook_url,
+            "triggers": ["document_state_changed"]  # Add required triggers
+        }
         
         headers = {
             'Authorization': f'API-Key {PANDADOC_API_KEY}',
             'Content-Type': 'application/json'
         }
-        
-        webhook_data = {
-            "name": "Document Status Webhook",
-            "url": webhook_url,
-            "events": ["document_state_changed"],
-            "active": True
-        }
-        
-        logging.info(f"Setting up webhook with URL: {webhook_url}")
         
         response = requests.post(
             f"{PANDADOC_API_URL}/webhook-subscriptions",
@@ -151,10 +149,11 @@ async def setup_pandadoc_webhook(app_url: str):
         
         if response.status_code not in (200, 201):
             logging.error(f"Failed to setup PandaDoc webhook: {response.text}")
-            return False
+            return None
             
         return True
         
     except Exception as e:
-        logging.error(f"Error setting up PandaDoc webhook: {str(e)}")
-        return False
+        logging.error(f"Failed to setup PandaDoc webhook: {str(e)}")
+        # Don't raise exception to allow app to start
+        return None
