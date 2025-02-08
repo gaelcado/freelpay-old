@@ -21,7 +21,13 @@ async def get_current_user(authorization: str = Header(...)):
         if not user:
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
             
-        return user.user.user_metadata
+        # Include required fields
+        user_data = {
+            'id': user.user.id,  # Use the actual user ID
+            **user.user.user_metadata  # Spread the rest of the metadata
+        }
+            
+        return user_data
         
     except Exception as e:
         logging.error(f"Auth error: {str(e)}")

@@ -126,6 +126,15 @@ async def upload_invoice(
     return invoice
 
 @router.get(
+    "/list",
+    response_model=List[InvoiceListResponse],
+    summary="List all invoices",
+    description="Lists all invoices belonging to the current user"
+)
+async def list_invoices(current_user: dict = Depends(get_current_user)):
+    return await get_user_invoices(current_user['id'])
+
+@router.get(
     "/{invoice_id}",
     response_model=Invoice,
     summary="Get invoice details",
@@ -257,15 +266,6 @@ async def update_invoice_route(
             status_code=500,
             detail=f"An error occurred while updating the invoice: {str(e)}"
         )
-
-@router.get(
-    "/list",
-    response_model=List[InvoiceListResponse],
-    summary="List all invoices",
-    description="Lists all invoices belonging to the current user"
-)
-async def list_invoices(current_user: dict = Depends(get_current_user)):
-    return await get_user_invoices(current_user['id'])
 
 @router.post(
     "/{invoice_id}/send",
